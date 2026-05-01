@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Token Test</title>
+</head>
+<body>
+    <h1>Session Token Test</h1>
+    <div id="result"></div>
+    
+    <script>
+        const token = localStorage.getItem('session_token');
+        const resultDiv = document.getElementById('result');
+        
+        if (token) {
+            resultDiv.innerHTML = `
+                <p><strong>✓ Token gefunden:</strong></p>
+                <pre>${token}</pre>
+                <p>Länge: ${token.length} Zeichen</p>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <p style="color: red;"><strong>✗ Kein Token im localStorage!</strong></p>
+                <p>Bitte einloggen: <a href="login.html">Login</a></p>
+            `;
+        }
+    </script>
+</body>
+</html>

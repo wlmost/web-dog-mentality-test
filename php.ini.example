@@ -1,0 +1,39 @@
+<?php
+/**
+ * PHP-Konfiguration via php.ini (Alternative zu .htaccess)
+ * 
+ * Falls dein Hoster .htaccess nicht erlaubt, kannst du diese Datei
+ * als php.ini oder .user.ini hochladen (je nach Hoster)
+ * 
+ * Verwendung:
+ * 1. Umbenennen zu "php.ini" oder ".user.ini"
+ * 2. In Root-Verzeichnis hochladen
+ * 3. Warten (~5 Minuten bis Änderungen aktiv)
+ */
+
+; Upload-Limits
+upload_max_filesize = 10M
+post_max_size = 10M
+
+; Memory & Execution
+memory_limit = 256M
+max_execution_time = 120
+max_input_time = 120
+
+; Error Handling (Produktion)
+display_errors = Off
+log_errors = On
+error_log = logs/php_error.log
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+
+; Security
+expose_php = Off
+allow_url_fopen = On
+allow_url_include = Off
+
+; Sessions
+session.cookie_httponly = 1
+session.use_strict_mode = 1
+
+; Timezone
+date.timezone = Europe/Berlin

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil bearbeiten - Dog Mentality Test</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/styles.css?v=2">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="index.html">
+                <img src="HomoCanis.jpg" alt="HomoCanis" height="50" class="me-2">
+                <span class="fw-bold">Dog Mentality Test</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="bi bi-house-door"></i> Zurück
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="logout(); return false;">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <!-- Profil Header -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body text-center">
+                        <h2 class="mb-3"><i class="bi bi-person-circle"></i> Mein Profil</h2>
+                        
+                        <!-- Avatar -->
+                        <div class="mb-4">
+                            <div class="position-relative d-inline-block">
+                                <img id="avatarPreview" 
+                                     src="" 
+                                     alt="Avatar" 
+                                     class="rounded-circle" 
+                                     style="width: 150px; height: 150px; object-fit: cover; border: 3px solid #dee2e6;"
+                                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22150%22 height=%22150%22%3E%3Crect fill=%22%23e9ecef%22 width=%22150%22 height=%22150%22/%3E%3Ctext fill=%22%236c757d%22 font-family=%22sans-serif%22 font-size=%2250%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3E%3F%3C/text%3E%3C/svg%3E'">
+                                <button id="btnEditAvatar" class="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle" style="width: 40px; height: 40px;">
+                                    <i class="bi bi-camera"></i>
+                                </button>
+                            </div>
+                            <input type="file" id="avatarInput" accept="image/*" class="d-none">
+                        </div>
+                        
+                        <h4 id="profileUsername" class="mb-1">-</h4>
+                        <p id="profileEmail" class="text-muted mb-0">-</p>
+                    </div>
+                </div>
+
+                <!-- Alert -->
+                <div id="profileAlert"></div>
+
+                <!-- Persönliche Informationen -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-person"></i> Persönliche Informationen</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="formUpdateInfo">
+                            <div class="mb-3">
+                                <label for="inputEmail" class="form-label">E-Mail-Adresse</label>
+                                <input type="email" class="form-control" id="inputEmail" placeholder="ihre.email@example.com">
+                            </div>
+                            <div class="mb-3">
+                                <label for="inputFullName" class="form-label">Vollständiger Name</label>
+                                <input type="text" class="form-control" id="inputFullName" placeholder="Ihr Name">
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-circle"></i> Informationen speichern
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Passwort ändern -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Passwort ändern</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="formChangePassword">
+                            <div class="mb-3">
+                                <label for="inputCurrentPassword" class="form-label">Aktuelles Passwort</label>
+                                <input type="password" class="form-control" id="inputCurrentPassword" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="inputNewPassword" class="form-label">Neues Passwort</label>
+                                <input type="password" class="form-control" id="inputNewPassword" required minlength="8">
+                                <small class="form-text text-muted">Mindestens 8 Zeichen</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="inputConfirmPassword" class="form-label">Passwort bestätigen</label>
+                                <input type="password" class="form-control" id="inputConfirmPassword" required minlength="8">
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="bi bi-key"></i> Passwort ändern
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Avatar löschen -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0"><i class="bi bi-trash"></i> Avatar löschen</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">Möchten Sie Ihr Profilbild entfernen?</p>
+                        <button id="btnDeleteAvatar" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Avatar löschen
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Profil-Informationen -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="bi bi-info-circle"></i> Konto-Informationen</h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Benutzername:</dt>
+                            <dd class="col-sm-8" id="infoUsername">-</dd>
+                            
+                            <dt class="col-sm-4">2FA Status:</dt>
+                            <dd class="col-sm-8">
+                                <span id="info2FA" class="badge bg-secondary">-</span>
+                                <button id="btn2FAToggle" class="btn btn-sm btn-outline-primary ms-2" style="display: none;">
+                                    <i class="bi bi-shield-check"></i> <span id="btn2FAText">2FA einrichten</span>
+                                </button>
+                            </dd>
+                            
+                            <dt class="col-sm-4">Letzter Login:</dt>
+                            <dd class="col-sm-8" id="infoLastLogin">-</dd>
+                            
+                            <dt class="col-sm-4">Konto erstellt:</dt>
+                            <dd class="col-sm-8" id="infoCreated">-</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2FA Setup Modal -->
+    <div class="modal fade" id="modal2FASetup" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-shield-lock"></i> Zwei-Faktor-Authentifizierung einrichten</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="2fa-alert"></div>
+                    
+                    <!-- Schritt 1: QR-Code -->
+                    <div id="step1-qr" style="display: none;">
+                        <h6 class="mb-3">Schritt 1: QR-Code scannen</h6>
+                        <p class="text-muted small">Scannen Sie diesen QR-Code mit einer Authenticator-App (Google Authenticator, Microsoft Authenticator, Authy, etc.)</p>
+                        
+                        <div class="text-center mb-3" id="qrCodeContainer">
+                            <!-- QR-Code wird hier eingefügt -->
+                        </div>
+                        
+                        <div class="alert alert-info small">
+                            <strong>Manuelle Eingabe:</strong><br>
+                            Secret: <code id="totpSecret"></code>
+                        </div>
+                        
+                        <button type="button" class="btn btn-primary w-100" onclick="show2FAStep2()">
+                            Weiter <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Schritt 2: Code verifizieren -->
+                    <div id="step2-verify" style="display: none;">
+                        <h6 class="mb-3">Schritt 2: Code verifizieren</h6>
+                        <p class="text-muted small">Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein:</p>
+                        
+                        <div class="mb-3">
+                            <input type="text" class="form-control form-control-lg text-center" id="input2FACode" 
+                                   placeholder="000000" maxlength="6" pattern="[0-9]{6}">
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-primary" onclick="verify2FACode()">
+                                <i class="bi bi-check-circle"></i> Code verifizieren
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="show2FAStep1()">
+                                <i class="bi bi-arrow-left"></i> Zurück
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Schritt 3: Backup-Codes -->
+                    <div id="step3-backup" style="display: none;">
+                        <h6 class="mb-3"><i class="bi bi-check-circle-fill text-success"></i> 2FA erfolgreich aktiviert!</h6>
+                        
+                        <div class="alert alert-warning">
+                            <strong><i class="bi bi-exclamation-triangle"></i> Wichtig: Backup-Codes speichern!</strong><br>
+                            Diese Codes können Sie verwenden, falls Sie keinen Zugriff auf Ihre Authenticator-App haben.
+                            Jeder Code kann nur <strong>einmal</strong> verwendet werden.
+                        </div>
+                        
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <pre id="backupCodes" class="mb-0" style="font-family: monospace; font-size: 14px;"></pre>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-success" onclick="downloadBackupCodes()">
+                                <i class="bi bi-download"></i> Codes herunterladen
+                            </button>
+                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="location.reload()">
+                                <i class="bi bi-check"></i> Fertig
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2FA Disable Confirmation Modal -->
+    <div class="modal fade" id="modal2FADisable" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-shield-x"></i> 2FA deaktivieren</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Sind Sie sicher, dass Sie die Zwei-Faktor-Authentifizierung deaktivieren möchten?</strong></p>
+                    <p class="text-muted small">Dies verringert die Sicherheit Ihres Kontos erheblich.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-danger" onclick="disable2FA()">
+                        <i class="bi bi-shield-x"></i> Ja, 2FA deaktivieren
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Application Scripts -->
+    <script src="js/auth.js?v=4"></script>
+    <script src="js/profile.js?v=4"></script>
+</body>
+</html>

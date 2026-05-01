@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Dog Mentality Test - OCEAN Analyse</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <link rel="stylesheet" href="css/styles.css?v=2">
+    <script src="js/auth.js?v=3"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <img src="HomoCanis.jpg" alt="HomoCanis" height="50" class="me-2">
+                <span class="fw-bold">Dog Mentality Test</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" data-tab="batteries">
+                            <i class="bi bi-file-earmark-text"></i> Batterien
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-tab="dogs">
+                            <i class="bi bi-house-heart"></i> Hunde
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-tab="sessions">
+                            <i class="bi bi-clipboard-check"></i> Sessions
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-tab="analysis">
+                            <i class="bi bi-graph-up"></i> Auswertung
+                        </a>
+                    </li>
+                    <li class="nav-item" id="usersTab" style="display: none;">
+                        <a class="nav-link" href="#" data-tab="users">
+                            <i class="bi bi-people"></i> Benutzer
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="profile.html">
+                            <i class="bi bi-person-circle"></i> Profil
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="logout(); return false;">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid py-4">
+        <!-- Tab: Hunde -->
+        <div id="tab-dogs" class="tab-content">
+            <div class="row mb-3">
+                <div class="col-lg-8">
+                    <h2><i class="bi bi-house-heart"></i> Stammdaten</h2>
+                </div>
+                <div class="col-lg-4 text-end">
+                    <button class="btn btn-primary btn-lg" id="btn-new-dog">
+                        <i class="bi bi-plus-circle"></i> Neuer Hund
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sucheingabe -->
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="search-dogs" placeholder="Suche nach Hund, Halter oder Rasse...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hunde-Liste -->
+            <div id="dogs-list" class="row g-3">
+                <!-- Wird dynamisch befüllt -->
+            </div>
+        </div>
+
+        <!-- Tab: Sessions -->
+        <div id="tab-sessions" class="tab-content">
+            <div class="row mb-3">
+                <div class="col-lg-8">
+                    <h2><i class="bi bi-clipboard-check"></i> Test-Sessions</h2>
+                </div>
+                <div class="col-lg-4 text-end">
+                    <button class="btn btn-primary btn-lg" id="btn-new-session" disabled>
+                        <i class="bi bi-plus-circle"></i> Neue Session
+                    </button>
+                </div>
+            </div>
+
+            <!-- Session-Details -->
+            <div id="session-detail" class="d-none">
+                <!-- Session-Info -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h4 class="mb-0"><i class="bi bi-info-circle"></i> Session-Info</h4>
+                    </div>
+                    <div class="card-body" id="session-info">
+                        <!-- Wird dynamisch befüllt -->
+                    </div>
+                </div>
+
+                <!-- Test-Tabelle -->
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0"><i class="bi bi-list-check"></i> Tests durchführen</h4>
+                        <span class="badge bg-primary" id="test-progress">0 / 0</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0" id="tests-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 60px;">Nr.</th>
+                                        <th>Test</th>
+                                        <th style="width: 100px;">OCEAN</th>
+                                        <th style="width: 200px;" class="text-center">Score</th>
+                                        <th style="width: 250px;">Notizen</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tests-tbody">
+                                    <!-- Wird dynamisch befüllt -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Session-Notizen -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-journal-text"></i> Session-Notizen</h5>
+                    </div>
+                    <div class="card-body">
+                        <textarea class="form-control" id="session-notes" rows="4" placeholder="Allgemeine Notizen zur Session..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Aktionen -->
+                <div class="d-flex gap-2 mb-3">
+                    <button class="btn btn-success btn-lg" id="btn-save-session">
+                        <i class="bi bi-check-circle"></i> Session speichern
+                    </button>
+                    <button class="btn btn-outline-secondary btn-lg" id="btn-back-sessions">
+                        <i class="bi bi-arrow-left"></i> Zurück
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sessions-Liste -->
+            <div id="sessions-list">
+                <!-- Wird dynamisch befüllt -->
+            </div>
+        </div>
+
+        <!-- Tab: Batterien -->
+        <div id="tab-batteries" class="tab-content active">
+            <div class="row mb-3">
+                <div class="col-12">
+                    <h2><i class="bi bi-file-earmark-text"></i> Testbatterien verwalten</h2>
+                </div>
+            </div>
+            
+            <!-- CSV Import -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-spreadsheet"></i> CSV-Import</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="battery-file" class="form-label">CSV-Datei auswählen</label>
+                                <input type="file" class="form-control form-control-lg" id="battery-file" accept=".csv">
+                                <div class="form-text">
+                                    Format: Semikolon-getrennt (;) - UTF-8 kodiert (max. 5 MB)
+                                </div>
+                            </div>
+                            <button class="btn btn-primary btn-lg" onclick="uploadBattery()">
+                                <i class="bi bi-upload"></i> Batterie importieren
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-info">
+                                <h6><i class="bi bi-info-circle"></i> Template verwenden</h6>
+                                <p class="mb-2">Laden Sie das CSV-Template herunter, füllen Sie es aus und laden Sie es hier hoch.</p>
+                                <button class="btn btn-sm btn-outline-primary" onclick="downloadTemplate()">
+                                    <i class="bi bi-download"></i> Template herunterladen
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Batterien-Liste -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-list-check"></i> Vorhandene Testbatterien</h5>
+                </div>
+                <div class="card-body">
+                    <div id="batteries-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Auswertung -->
+        <div id="tab-analysis" class="tab-content">
+            <div class="row mb-3">
+                <div class="col-12">
+                    <h2><i class="bi bi-graph-up"></i> OCEAN-Auswertung</h2>
+                </div>
+            </div>
+
+            <!-- Session auswählen -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <label class="form-label fw-bold">Session auswählen:</label>
+                    <select class="form-select form-select-lg" id="select-analysis-session">
+                        <option value="">-- Bitte Session auswählen --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Auswertungs-Container -->
+            <div id="analysis-container" class="d-none">
+                <!-- Radardiagramm -->
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0"><i class="bi bi-radar"></i> OCEAN-Radardiagramm</h4>
+                        <button class="btn btn-sm btn-outline-primary" id="btn-generate-ideal">
+                            <i class="bi bi-stars"></i> Idealprofil generieren
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div style="cursor: pointer;" onclick="showOceanChartModal()" title="Klicken für Vollbildansicht">
+                            <canvas id="ocean-chart" style="max-height: 500px;"></canvas>
+                        </div>
+                        <p class="text-center text-muted mt-2 mb-0">
+                            <small><i class="bi bi-arrows-fullscreen"></i> Klicken für größere Ansicht</small>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Statistik -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h4 class="mb-0"><i class="bi bi-bar-chart"></i> Statistik</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="ocean-stats" class="table-responsive">
+                            <!-- Wird dynamisch befüllt -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Halter-Profil -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h4 class="mb-0"><i class="bi bi-person-check"></i> Halter-Erwartungsprofil</h4>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Tragen Sie die OCEAN-Werte ein, die der Halter aus einem Fragebogen ermittelt hat:</p>
+                        <div class="row g-3">
+                            <div class="col-md-4 col-6">
+                                <label class="form-label">Openness (O)</label>
+                                <input type="number" class="form-control" id="owner-o" min="-14" max="14" value="0">
+                            </div>
+                            <div class="col-md-4 col-6">
+                                <label class="form-label">Conscientiousness (C)</label>
+                                <input type="number" class="form-control" id="owner-c" min="-14" max="14" value="0">
+                            </div>
+                            <div class="col-md-4 col-6">
+                                <label class="form-label">Extraversion (E)</label>
+                                <input type="number" class="form-control" id="owner-e" min="-14" max="14" value="0">
+                            </div>
+                            <div class="col-md-4 col-6">
+                                <label class="form-label">Agreeableness (A)</label>
+                                <input type="number" class="form-control" id="owner-a" min="-14" max="14" value="0">
+                            </div>
+                            <div class="col-md-4 col-6">
+                                <label class="form-label">Neuroticism (N)</label>
+                                <input type="number" class="form-control" id="owner-n" min="-14" max="14" value="0">
+                            </div>
+                            <div class="col-md-4 col-12">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-success w-100" id="btn-save-owner-profile">
+                                    <i class="bi bi-check-circle"></i> Speichern
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KI-Bewertung -->
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0"><i class="bi bi-robot"></i> KI-Bewertung</h4>
+                        <button class="btn btn-sm btn-primary" id="btn-generate-assessment">
+                            <i class="bi bi-magic"></i> Bewertung generieren
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="ai-assessment-content">
+                            <p class="text-muted">Klicken Sie auf "Bewertung generieren", um eine KI-gestützte Analyse zu erhalten.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Benutzer Tab (Admin only) -->
+        <div id="tab-users" class="tab-content">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2><i class="bi bi-people"></i> Benutzerverwaltung</h2>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                    <i class="bi bi-person-plus"></i> Neuen Benutzer anlegen
+                </button>
+            </div>
+
+            <div id="user-alert-container"></div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Benutzername</th>
+                                    <th>Name</th>
+                                    <th>E-Mail</th>
+                                    <th>Status</th>
+                                    <th>Letzter Login</th>
+                                    <th>Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTableBody">
+                                <!-- Wird dynamisch befüllt -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OCEAN Chart Modal -->
+    <div class="modal fade" id="oceanChartModal" tabindex="-1">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-radar"></i> OCEAN-Radardiagramm</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body d-flex align-items-center justify-content-center">
+                    <div style="width: 90%; max-width: 1200px; height: 80vh;">
+                        <canvas id="ocean-chart-modal"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Benutzer erstellen Modal -->
+    <div class="modal fade" id="createUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Neuen Benutzer anlegen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createUserForm">
+                        <div class="mb-3">
+                            <label for="create-username" class="form-label">Benutzername *</label>
+                            <input type="text" class="form-control" id="create-username" required>
+                            <small class="form-text text-muted">Mindestens 3 Zeichen</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="create-password" class="form-label">Passwort *</label>
+                            <input type="password" class="form-control" id="create-password" required>
+                            <small class="form-text text-muted">Mindestens 8 Zeichen</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="create-password-confirm" class="form-label">Passwort bestätigen *</label>
+                            <input type="password" class="form-control" id="create-password-confirm" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="create-email" class="form-label">E-Mail</label>
+                            <input type="email" class="form-control" id="create-email">
+                        </div>
+                        <div class="mb-3">
+                            <label for="create-full-name" class="form-label">Vollständiger Name</label>
+                            <input type="text" class="form-control" id="create-full-name">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="create-is-admin">
+                            <label class="form-check-label" for="create-is-admin">Administrator</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" onclick="createUser()">Anlegen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Benutzer bearbeiten Modal -->
+    <div class="modal fade" id="editUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Benutzer bearbeiten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editUserForm">
+                        <input type="hidden" id="edit-user-id">
+                        <div class="mb-3">
+                            <label for="edit-username" class="form-label">Benutzername</label>
+                            <input type="text" class="form-control" id="edit-username" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-email" class="form-label">E-Mail</label>
+                            <input type="email" class="form-control" id="edit-email">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-full-name" class="form-label">Vollständiger Name</label>
+                            <input type="text" class="form-control" id="edit-full-name">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Passwort ändern (optional)</label>
+                            <input type="password" class="form-control mb-2" id="edit-password" placeholder="Neues Passwort">
+                            <input type="password" class="form-control" id="edit-password-confirm" placeholder="Passwort bestätigen">
+                            <small class="form-text text-muted">Leer lassen, um Passwort beizubehalten</small>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="edit-is-admin">
+                            <label class="form-check-label" for="edit-is-admin">Administrator</label>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="edit-is-active">
+                            <label class="form-check-label" for="edit-is-active">Aktiv</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" onclick="document.getElementById('editUserForm').dispatchEvent(new Event('submit'))">Speichern</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Hund bearbeiten -->
+    <div class="modal fade" id="modal-dog" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-dog-title">Neuer Hund</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-dog">
+                        <input type="hidden" id="dog-id">
+                        
+                        <h6 class="fw-bold mb-3">Halter-Daten</h6>
+                        <div class="mb-3">
+                            <label class="form-label">Name des Halters *</label>
+                            <input type="text" class="form-control" id="dog-owner-name" required>
+                        </div>
+
+                        <h6 class="fw-bold mb-3 mt-4">Hunde-Daten</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Name des Hundes *</label>
+                                <input type="text" class="form-control" id="dog-name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Rasse</label>
+                                <input type="text" class="form-control" id="dog-breed" placeholder="z.B. Golden Retriever">
+                            </div>
+                            <div class="col-md-4 col-6">
+                                <label class="form-label">Alter (Jahre) *</label>
+                                <input type="number" class="form-control" id="dog-age-years" min="0" max="20" required>
+                            </div>
+                            <div class="col-md-4 col-6">
+                                <label class="form-label">Alter (Monate)</label>
+                                <input type="number" class="form-control" id="dog-age-months" min="0" max="11" value="0">
+                            </div>
+                            <div class="col-md-4 col-12">
+                                <label class="form-label">Geschlecht *</label>
+                                <select class="form-select" id="dog-gender" required>
+                                    <option value="">-- Auswählen --</option>
+                                    <option value="Rüde">Rüde</option>
+                                    <option value="Hündin">Hündin</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mt-4">
+                                    <input class="form-check-input" type="checkbox" id="dog-neutered">
+                                    <label class="form-check-label" for="dog-neutered">Kastriert</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Einsatzgebiet</label>
+                                <input type="text" class="form-control" id="dog-intended-use" placeholder="z.B. Therapiehund, Familienhund, Rettungshund">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" id="btn-save-dog">Speichern</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading-overlay" class="d-none">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Laden...</span>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- App JS -->
+    <script src="js/api.js?v=3"></script>
+    <script src="js/app.js?v=3"></script>
+    <script src="js/radar-chart.js?v=2"></script>
+    <!-- users.js wird dynamisch nur für Admins geladen -->
+</body>
+</html>
