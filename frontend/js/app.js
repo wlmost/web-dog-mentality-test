@@ -13,7 +13,14 @@ const state = {
     sessions: [],
     batteries: [],
     oceanChart: null,
-    oceanChartModal: null
+    oceanChartModal: null,
+    wizard: {
+        step: 1,
+        selectedDog: null,
+        selectedBattery: null,
+        dogs: [],
+        batteries: []
+    }
 };
 
 // ===== HELPER FUNCTIONS =====
@@ -98,7 +105,7 @@ function setupEventListeners() {
     document.getElementById('search-dogs').addEventListener('input', debounce(searchDogs, 300));
 
     // Sessions
-    document.getElementById('btn-new-session').addEventListener('click', createNewSession);
+    document.getElementById('btn-new-session').addEventListener('click', startSessionWizard);
     document.getElementById('btn-back-sessions').addEventListener('click', () => {
         document.getElementById('session-detail').classList.add('d-none');
         document.getElementById('sessions-list').classList.remove('d-none');
@@ -316,17 +323,8 @@ function viewDogSessions(dogId, dogName) {
 // ===== SESSIONS =====
 async function loadSessions() {
     const dogId = state.currentDog?.id;
-    
-    if (!dogId) {
-        document.getElementById('sessions-list').innerHTML = `
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i> Bitte wählen Sie zuerst einen Hund im Tab "Hunde" aus.
-            </div>
-        `;
-        document.getElementById('btn-new-session').disabled = true;
-        return;
-    }
 
+    // Button ist immer aktiv
     document.getElementById('btn-new-session').disabled = false;
 
     showLoading();
@@ -1270,3 +1268,290 @@ function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+// ===== SESSION WIZARD =====
+
+async function startSessionWizard() {
+    // Wizard-State zurücksetzen; bereits gewählten Hund vorbelegen
+    state.wizard = {
+        step: 1,
+        selectedDog: state.currentDog ? { id: state.currentDog.id, dog_name: state.currentDog.name } : null,
+        selectedBattery: null,
+        dogs: [],
+        batteries: []
+    };
+
+    const modal = new bootstrap.Modal(document.getElementById('session-wizard-modal'));
+    modal.show();
+
+    // Modal-Close: State zurücksetzen
+    document.getElementById('session-wizard-modal').addEventListener('hidden.bs.modal', () => {
+        state.wizard = { step: 1, selectedDog: null, selectedBattery: null, dogs: [], batteries: [] };
+    }, { once: true });
+
+    // Event-Listener registrieren
+    document.getElementById('wizard-btn-next').onclick = wizardNext;
+    document.getElementById('wizard-btn-back').onclick = wizardBack;
+    document.getElementById('wizard-btn-new-dog').onclick = showWizardDogForm;
+    document.getElementById('wizard-btn-cancel-new-dog').onclick = hideWizardDogForm;
+    document.getElementById('wizard-btn-save-new-dog').onclick = saveWizardNewDog;
+    document.getElementById('wizard-btn-start-test').onclick = wizardStartTest;
+    document.getElementById('wizard-dog-search').oninput = debounce(async (e) => {
+        await loadWizardDogs(e.target.value);
+    }, 300);
+
+    await showWizardStep(1);
+}
+
+async function showWizardStep(step) {
+    state.wizard.step = step;
+
+    // Alle Steps ausblenden
+    [1, 2, 3].forEach(n => {
+        document.getElementById(`wizard-step-${n}`).classList.add('d-none');
+    });
+    document.getElementById(`wizard-step-${step}`).classList.remove('d-none');
+
+    // Progress-Indikatoren aktualisieren
+    [1, 2, 3].forEach(n => {
+        const el = document.getElementById(`wizard-indicator-${n}`);
+        el.classList.remove('active', 'completed');
+        if (n < step) el.classList.add('completed');
+        else if (n === step) el.classList.add('active');
+    });
+
+    // Verbindungslinien
+    document.querySelectorAll('.wizard-step-line').forEach((line, i) => {
+        line.classList.toggle('completed', i + 2 <= step);
+    });
+
+    // Zurück-Button
+    const btnBack = document.getElementById('wizard-btn-back');
+    const btnNext = document.getElementById('wizard-btn-next');
+    btnBack.classList.toggle('d-none', step === 1);
+    btnNext.classList.toggle('d-none', step === 3);
+
+    // Step-spezifisches Laden
+    if (step === 1) {
+        document.getElementById('wizard-dog-search').value = '';
+        hideWizardDogForm();
+        await loadWizardDogs();
+    } else if (step === 2) {
+        const dog = state.wizard.selectedDog;
+        document.getElementById('wizard-selected-dog-info').textContent =
+            `${dog.dog_name}${dog.owner_name ? ' (' + dog.owner_name + ')' : ''}`;
+        await loadWizardBatteries();
+    } else if (step === 3) {
+        const dog = state.wizard.selectedDog;
+        const battery = state.wizard.selectedBattery;
+        document.getElementById('wizard-confirm-dog').textContent =
+            `${dog.dog_name}${dog.owner_name ? ' – ' + dog.owner_name : ''}${dog.breed ? ' (' + dog.breed + ')' : ''}`;
+        document.getElementById('wizard-confirm-battery').textContent =
+            `${battery.name} (${battery.test_count} Tests)`;
+    }
+}
+
+async function loadWizardDogs(search = '') {
+    showLoading();
+    try {
+        const data = await api.getDogs(search);
+        state.wizard.dogs = data.dogs;
+        renderWizardDogs(data.dogs);
+    } catch (error) {
+        showToast('Fehler beim Laden der Hunde', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+function renderWizardDogs(dogs) {
+    const container = document.getElementById('wizard-dogs-list');
+    if (dogs.length === 0) {
+        container.innerHTML = `
+            <div class="text-center p-4 text-muted">
+                <i class="bi bi-info-circle"></i> Keine Hunde gefunden.
+            </div>
+        `;
+        return;
+    }
+    container.innerHTML = dogs.map(dog => {
+        const isSelected = state.wizard.selectedDog?.id === dog.id;
+        const genderIcon = dog.gender === 'Rüde' ? 'gender-male text-primary' : 'gender-female text-danger';
+        return `
+            <div class="wizard-list-item ${isSelected ? 'selected' : ''}" onclick="selectWizardDog(${dog.id})">
+                <div class="wizard-list-item-title">
+                    <i class="bi bi-${genderIcon}"></i> ${escapeHtml(dog.dog_name)}
+                    ${isSelected ? '<i class="bi bi-check-circle-fill text-success float-end"></i>' : ''}
+                </div>
+                <div class="wizard-list-item-meta">
+                    <span><i class="bi bi-person"></i> ${escapeHtml(dog.owner_name)}</span>
+                    ${dog.breed ? `<span><i class="bi bi-tag"></i> ${escapeHtml(dog.breed)}</span>` : ''}
+                    <span><i class="bi bi-calendar"></i> ${formatAge(dog.age_years, dog.age_months)}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function selectWizardDog(dogId) {
+    const dog = state.wizard.dogs.find(d => d.id === dogId);
+    if (!dog) return;
+    state.wizard.selectedDog = dog;
+    renderWizardDogs(state.wizard.dogs);
+}
+
+async function loadWizardBatteries() {
+    showLoading();
+    try {
+        const data = await api.getBatteries();
+        state.wizard.batteries = data.batteries;
+        renderWizardBatteries(data.batteries);
+    } catch (error) {
+        showToast('Fehler beim Laden der Batterien', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+function renderWizardBatteries(batteries) {
+    const container = document.getElementById('wizard-batteries-list');
+    if (batteries.length === 0) {
+        container.innerHTML = `
+            <div class="p-4">
+                <div class="alert alert-warning mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Keine Testbatterien vorhanden. Bitte erst eine Batterie im Tab "Batterien" importieren.
+                </div>
+            </div>
+        `;
+        return;
+    }
+    container.innerHTML = batteries.map(battery => {
+        const isSelected = state.wizard.selectedBattery?.id === battery.id;
+        return `
+            <div class="wizard-list-item ${isSelected ? 'selected' : ''}" onclick="selectWizardBattery(${battery.id})">
+                <div class="wizard-list-item-title">
+                    ${escapeHtml(battery.name)}
+                    ${isSelected ? '<i class="bi bi-check-circle-fill text-success float-end"></i>' : ''}
+                </div>
+                <div class="wizard-list-item-meta">
+                    <span><i class="bi bi-list-check"></i> ${battery.test_count} Tests</span>
+                    ${battery.description ? `<span>${escapeHtml(battery.description)}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function selectWizardBattery(batteryId) {
+    const battery = state.wizard.batteries.find(b => b.id === batteryId);
+    if (!battery) return;
+    state.wizard.selectedBattery = battery;
+    renderWizardBatteries(state.wizard.batteries);
+}
+
+async function wizardNext() {
+    const step = state.wizard.step;
+    if (step === 1) {
+        if (!state.wizard.selectedDog) {
+            showToast('Bitte wählen Sie einen Hund aus oder erstellen Sie einen neuen.', 'warning');
+            return;
+        }
+    } else if (step === 2) {
+        if (!state.wizard.selectedBattery) {
+            showToast('Bitte wählen Sie eine Testbatterie aus.', 'warning');
+            return;
+        }
+    }
+    await showWizardStep(step + 1);
+}
+
+async function wizardBack() {
+    if (state.wizard.step > 1) {
+        await showWizardStep(state.wizard.step - 1);
+    }
+}
+
+function showWizardDogForm() {
+    document.getElementById('wizard-dog-form').classList.remove('d-none');
+    document.getElementById('wizard-dogs-list').classList.add('d-none');
+    document.getElementById('wizard-dog-search').parentElement.classList.add('d-none');
+    document.getElementById('wizard-btn-new-dog').classList.add('d-none');
+}
+
+function hideWizardDogForm() {
+    document.getElementById('wizard-dog-form').classList.add('d-none');
+    document.getElementById('wizard-dogs-list').classList.remove('d-none');
+    document.getElementById('wizard-dog-search').parentElement.classList.remove('d-none');
+    document.getElementById('wizard-btn-new-dog').classList.remove('d-none');
+    // Formularfelder leeren
+    ['wizard-dog-owner-name', 'wizard-dog-name', 'wizard-dog-breed',
+     'wizard-dog-intended-use'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('wizard-dog-age-years').value = '1';
+    document.getElementById('wizard-dog-age-months').value = '0';
+    document.getElementById('wizard-dog-gender').value = '';
+    document.getElementById('wizard-dog-neutered').checked = false;
+}
+
+async function saveWizardNewDog() {
+    const ownerName = document.getElementById('wizard-dog-owner-name').value.trim();
+    const dogName = document.getElementById('wizard-dog-name').value.trim();
+    const gender = document.getElementById('wizard-dog-gender').value;
+
+    if (!ownerName || !dogName || !gender) {
+        showToast('Bitte füllen Sie alle Pflichtfelder aus (Halter, Hundename, Geschlecht).', 'warning');
+        return;
+    }
+
+    const dogData = {
+        owner_name: ownerName,
+        dog_name: dogName,
+        breed: document.getElementById('wizard-dog-breed').value,
+        age_years: parseInt(document.getElementById('wizard-dog-age-years').value) || 1,
+        age_months: parseInt(document.getElementById('wizard-dog-age-months').value) || 0,
+        gender: gender,
+        neutered: document.getElementById('wizard-dog-neutered').checked,
+        intended_use: document.getElementById('wizard-dog-intended-use').value
+    };
+
+    showLoading();
+    try {
+        const newDog = await api.createDog(dogData);
+        state.wizard.selectedDog = { ...dogData, id: newDog.id || newDog.dog_id };
+        showToast(`Hund "${dogName}" erfolgreich erstellt!`, 'success');
+        await showWizardStep(2);
+    } catch (error) {
+        showToast('Fehler beim Erstellen: ' + error.message, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function wizardStartTest() {
+    const dog = state.wizard.selectedDog;
+    const battery = state.wizard.selectedBattery;
+
+    showLoading();
+    try {
+        const newSession = await api.createSession({
+            dog_id: dog.id,
+            battery_id: battery.id,
+            session_notes: ''
+        });
+
+        showToast('Session erfolgreich erstellt!', 'success');
+
+        // Modal schließen
+        bootstrap.Modal.getInstance(document.getElementById('session-wizard-modal')).hide();
+
+        // Kontext setzen und Session öffnen
+        state.currentDog = { id: dog.id, name: dog.dog_name };
+        await loadSessionDetail(newSession.session_id);
+        switchTab('sessions');
+    } catch (error) {
+        showToast('Fehler beim Erstellen der Session: ' + error.message, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
