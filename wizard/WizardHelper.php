@@ -1,0 +1,257 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * WizardHelper – Gemeinsame Hilfsfunktionen für Install- und Update-Wizard
+ */
+class WizardHelper
+{
+    /** Prüft ob der Wizard gesperrt ist (nach erfolgreicher Installation) */
+    public static function isLocked(): bool
+    {
+        return file_exists(__DIR__ . '/.lock');
+    }
+
+    /** Setzt Lock-File nach erfolgreicher Installation */
+    public static function lock(): void
+    {
+        if (file_put_contents(__DIR__ . '/.lock', date('Y-m-d H:i:s')) === false) {
+            throw new RuntimeException('Wizard-Lock konnte nicht geschrieben werden. Bitte Schreibrechte auf dem wizard/-Verzeichnis prüfen.');
+        }
+    }
+
+    /** Testet DB-Verbindung und gibt mysqli-Objekt oder Exception zurück */
+    public static function testConnection(string $host, string $user, string $pass, string $name): mysqli
+    {
+        $conn = new mysqli($host, $user, $pass, $name);
+        if ($conn->connect_error) {
+            throw new RuntimeException('Verbindungsfehler: ' . $conn->connect_error);
+        }
+        if (!$conn->set_charset('utf8mb4')) {
+            throw new RuntimeException('Charset-Fehler: ' . $conn->error);
+        }
+        return $conn;
+    }
+
+    /**
+     * Führt eine SQL-Datei aus, ersetzt {{PREFIX}} durch den konfigurierten Präfix.
+     * Gibt Array mit ['success' => bool, 'log' => string[]] zurück.
+     */
+    public static function executeSqlFile(mysqli $conn, string $filePath, string $prefix): array
+    {
+        if (!file_exists($filePath)) {
+            return ['success' => false, 'log' => ["Datei nicht gefunden: $filePath"]];
+        }
+
+        $sql = file_get_contents($filePath);
+        $sql = str_replace('{{PREFIX}}', $prefix, $sql);
+
+        // Kommentarzeilen entfernen, Statements aufteilen
+        $statements = self::splitSqlStatements($sql);
+        $log = [];
+
+        foreach ($statements as $statement) {
+            $statement = trim($statement);
+            if ($statement === '') {
+                continue;
+            }
+            if (!$conn->query($statement)) {
+                $log[] = '❌ FEHLER: ' . $conn->error . ' | SQL: ' . mb_substr($statement, 0, 100);
+                return ['success' => false, 'log' => $log];
+            }
+            // Erste Zeile des Statements als Log-Eintrag
+            $firstLine = trim(strtok($statement, "\n"));
+            $log[] = '✅ ' . mb_substr($firstLine, 0, 80);
+        }
+
+        return ['success' => true, 'log' => $log];
+    }
+
+    /** Spaltet SQL-Text in einzelne Statements auf (delimiter-aware) */
+    private static function splitSqlStatements(string $sql): array
+    {
+        $statements = [];
+        $current = '';
+        $lines = explode("\n", $sql);
+
+        foreach ($lines as $line) {
+            // Kommentarzeilen überspringen
+            $trimmed = ltrim($line);
+            if (str_starts_with($trimmed, '--') || str_starts_with($trimmed, '#')) {
+                continue;
+            }
+            $current .= $line . "\n";
+            if (str_ends_with(rtrim($line), ';')) {
+                $statements[] = trim($current);
+                $current = '';
+            }
+        }
+        if (trim($current) !== '') {
+            $statements[] = trim($current);
+        }
+
+        return $statements;
+    }
+
+    /** Prüft ob config.local.php bereits existiert */
+    public static function isConfigured(): bool
+    {
+        return file_exists(__DIR__ . '/../api/config.local.php');
+    }
+
+    /** Schreibt config.local.php mit den übergebenen Werten */
+    public static function writeConfig(string $host, string $user, string $pass, string $name, string $prefix): void
+    {
+        $host   = addslashes($host);
+        $user   = addslashes($user);
+        $pass   = addslashes($pass);
+        $name   = addslashes($name);
+        $prefix = addslashes($prefix);
+
+        $content = "<?php\n"
+            . "declare(strict_types=1);\n"
+            . "// Automatisch generiert vom Installations-Wizard – " . date('Y-m-d H:i:s') . "\n"
+            . "// Diese Datei nicht ins Repository einchecken!\n\n"
+            . "define('DB_HOST',   '$host');\n"
+            . "define('DB_USER',   '$user');\n"
+            . "define('DB_PASS',   '$pass');\n"
+            . "define('DB_NAME',   '$name');\n"
+            . "define('DB_PREFIX', '$prefix');\n";
+
+        if (file_put_contents(__DIR__ . '/../api/config.local.php', $content) === false) {
+            throw new RuntimeException('config.local.php konnte nicht geschrieben werden. Bitte Schreibrechte prüfen.');
+        }
+    }
+
+    /** Validiert den Tabellenpräfix: nur a-z, 0-9, _ ; max. 20 Zeichen */
+    public static function validatePrefix(string $prefix): string
+    {
+        if ($prefix === '') {
+            return '';
+        }
+        if (!preg_match('/^[a-z0-9_]{1,20}$/', $prefix)) {
+            throw new InvalidArgumentException('Tabellenpräfix darf nur Kleinbuchstaben, Ziffern und _ enthalten (max. 20 Zeichen).');
+        }
+        return $prefix;
+    }
+
+    /** Validiert Passwortstärke: min. 10 Zeichen */
+    public static function validatePassword(string $password): void
+    {
+        if (strlen($password) < 10) {
+            throw new InvalidArgumentException('Passwort muss mindestens 10 Zeichen lang sein.');
+        }
+        if (!preg_match('/[A-Z]/', $password)) {
+            throw new InvalidArgumentException('Passwort muss mindestens einen Großbuchstaben enthalten.');
+        }
+        if (!preg_match('/[a-z]/', $password)) {
+            throw new InvalidArgumentException('Passwort muss mindestens einen Kleinbuchstaben enthalten.');
+        }
+        if (!preg_match('/[0-9]/', $password)) {
+            throw new InvalidArgumentException('Passwort muss mindestens eine Ziffer enthalten.');
+        }
+    }
+
+    /** Gibt alle verfügbaren Migrations-Dateien sortiert zurück */
+    public static function getAvailableMigrations(): array
+    {
+        $dir = __DIR__ . '/../database/migrations/';
+        if (!is_dir($dir)) {
+            return [];
+        }
+        $files = glob($dir . '*.sql');
+        if ($files === false) {
+            return [];
+        }
+        sort($files);
+        return $files;
+    }
+
+    /**
+     * Liest die Version aus dem Dateinamen: 001_foo.sql → '001'
+     */
+    public static function getMigrationVersion(string $filePath): string
+    {
+        $base = basename($filePath, '.sql');
+        return explode('_', $base)[0];
+    }
+
+    /** Liest die Description aus dem SQL-Kommentar -- Description: ... */
+    public static function getMigrationDescription(string $filePath): string
+    {
+        $lines = file($filePath, FILE_IGNORE_NEW_LINES) ?: [];
+        foreach ($lines as $line) {
+            if (preg_match('/^-- Description:\s*(.+)$/i', $line, $m)) {
+                return trim($m[1]);
+            }
+        }
+        return basename($filePath);
+    }
+
+    /** Gibt bereits eingespielten Migrations-Versionen aus DB zurück */
+    public static function getAppliedMigrations(mysqli $conn, string $prefix): array
+    {
+        $table = $prefix . 'schema_migrations';
+        $result = $conn->query("SELECT version FROM `$table` ORDER BY version");
+        if (!$result) {
+            return [];
+        }
+        $versions = [];
+        while ($row = $result->fetch_assoc()) {
+            $versions[] = $row['version'];
+        }
+        return $versions;
+    }
+
+    /** Trägt eine Migration als angewendet in die DB ein */
+    public static function recordMigration(mysqli $conn, string $prefix, string $version, string $description): void
+    {
+        $table = $prefix . 'schema_migrations';
+        $stmt = $conn->prepare("INSERT INTO `$table` (version, description) VALUES (?, ?)");
+        if (!$stmt) {
+            throw new RuntimeException('Prepare fehlgeschlagen: ' . $conn->error);
+        }
+        $stmt->bind_param('ss', $version, $description);
+        $stmt->execute();
+        $stmt->close();
+    }
+
+    /** Gibt ein formatiertes HTML-Log aus */
+    public static function renderLog(array $log): string
+    {
+        $html = '<ul class="log">';
+        foreach ($log as $entry) {
+            $class = str_starts_with($entry, '❌') ? 'error' : 'ok';
+            $html .= '<li class="' . $class . '">' . htmlspecialchars($entry) . '</li>';
+        }
+        $html .= '</ul>';
+        return $html;
+    }
+
+    /** Gibt CSRF-Token aus Session zurück oder erstellt eines */
+    public static function getCsrfToken(): string
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (empty($_SESSION['wizard_csrf'])) {
+            $_SESSION['wizard_csrf'] = bin2hex(random_bytes(32));
+        }
+        return $_SESSION['wizard_csrf'];
+    }
+
+    /** Prüft CSRF-Token aus POST */
+    public static function verifyCsrf(): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $token        = $_POST['csrf_token'] ?? '';
+        $sessionToken = $_SESSION['wizard_csrf'] ?? '';
+        // Explizit leere Tokens ablehnen – verhindert hash_equals('', '') === true
+        if ($sessionToken === '' || $token === '' || !hash_equals($sessionToken, $token)) {
+            http_response_code(403);
+            die('Ungültige Anfrage (CSRF-Schutz).');
+        }
+    }
+}
