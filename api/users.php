@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * User Management API (nur für Admins)
  */
@@ -18,12 +19,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // getUserFromSession Funktion aus auth.php (kopiert um require_once Problem zu vermeiden)
 function getUserFromSession($conn, $token) {
     // Abgelaufene Sessions löschen
-    $conn->query("DELETE FROM auth_sessions WHERE expires_at < NOW()");
+    $conn->query("DELETE FROM " . tbl('auth_sessions') . " WHERE expires_at < NOW()");
     
     $stmt = $conn->prepare("
         SELECT u.id, u.username, u.is_admin
-        FROM auth_sessions s
-        JOIN auth_users u ON u.id = s.user_id
+        FROM " . tbl('auth_sessions') . " s
+        JOIN " . tbl('auth_users') . " u ON u.id = s.user_id
         WHERE s.session_token = ? AND s.expires_at > NOW() AND u.is_active = TRUE
     ");
     $stmt->bind_param('s', $token);
@@ -144,7 +145,7 @@ function listUsers($conn) {
         SELECT 
             id, username, email, full_name, is_admin, is_active,
             totp_enabled, last_login, created_at
-        FROM auth_users
+        FROM " . tbl('auth_users') . "
         ORDER BY created_at DESC
     ");
     $stmt->execute();
@@ -169,7 +170,7 @@ function getUser($conn, $id) {
         SELECT 
             id, username, email, full_name, is_admin, is_active,
             totp_enabled, last_login, created_at
-        FROM auth_users
+        FROM " . tbl('auth_users') . "
         WHERE id = ?
     ");
     $stmt->bind_param('i', $id);
@@ -211,7 +212,7 @@ function createUser($conn, $input) {
     }
     
     // Prüfen ob Username bereits existiert
-    $stmt = $conn->prepare("SELECT id FROM auth_users WHERE username = ?");
+    $stmt = $conn->prepare("SELECT id FROM " . tbl('auth_users') . " WHERE username = ?");
     $stmt->bind_param('s', $username);
     $stmt->execute();
     if ($stmt->get_result()->fetch_assoc()) {
@@ -223,7 +224,7 @@ function createUser($conn, $input) {
     
     // Benutzer anlegen
     $stmt = $conn->prepare("
-        INSERT INTO auth_users 
+        INSERT INTO " . tbl('auth_users') . "
         (username, password_hash, email, full_name, is_admin, is_active)
         VALUES (?, ?, ?, ?, ?, TRUE)
     ");
@@ -250,7 +251,7 @@ function updateUser($conn, $input) {
     }
     
     // Benutzer laden
-    $stmt = $conn->prepare("SELECT username FROM auth_users WHERE id = ?");
+    $stmt = $conn->prepare("SELECT username FROM " . tbl('auth_users') . " WHERE id = ?");
     $stmt->bind_param('i', $userId);
     $stmt->execute();
     $user = $stmt->get_result()->fetch_assoc();
@@ -308,7 +309,7 @@ function updateUser($conn, $input) {
     $params[] = $userId;
     $types .= 'i';
     
-    $sql = "UPDATE auth_users SET " . implode(', ', $updates) . " WHERE id = ?";
+    $sql = "UPDATE " . tbl('auth_users') . " SET " . implode(', ', $updates) . " WHERE id = ?";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param($types, ...$params);
     $stmt->execute();
@@ -338,14 +339,14 @@ function deleteUser($conn, $input) {
     // Nicht den letzten Admin löschen
     $stmt = $conn->prepare("
         SELECT COUNT(*) as admin_count 
-        FROM auth_users 
+        FROM " . tbl('auth_users') . "
         WHERE is_admin = TRUE AND is_active = TRUE
     ");
     $stmt->execute();
     $count = $stmt->get_result()->fetch_assoc()['admin_count'];
     
     if ($count <= 1) {
-        $stmt = $conn->prepare("SELECT is_admin FROM auth_users WHERE id = ?");
+        $stmt = $conn->prepare("SELECT is_admin FROM " . tbl('auth_users') . " WHERE id = ?");
         $stmt->bind_param('i', $userId);
         $stmt->execute();
         $user = $stmt->get_result()->fetch_assoc();
@@ -356,7 +357,7 @@ function deleteUser($conn, $input) {
     }
     
     // Benutzer löschen (CASCADE löscht auch Sessions)
-    $stmt = $conn->prepare("DELETE FROM auth_users WHERE id = ?");
+    $stmt = $conn->prepare("DELETE FROM " . tbl('auth_users') . " WHERE id = ?");
     $stmt->bind_param('i', $userId);
     $stmt->execute();
     

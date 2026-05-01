@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * API Endpoint: Test Results
  * 
@@ -23,9 +24,9 @@ if ($method === 'GET') {
     $stmt = $conn->prepare("
         SELECT tr.id, tr.test_number, tr.score, tr.notes,
                bt.name as test_name, bt.ocean_dimension
-        FROM test_results tr
-        LEFT JOIN test_sessions ts ON tr.session_id = ts.id
-        LEFT JOIN battery_tests bt ON ts.battery_id = bt.battery_id 
+        FROM " . tbl('test_results') . " tr
+        LEFT JOIN " . tbl('test_sessions') . " ts ON tr.session_id = ts.id
+        LEFT JOIN " . tbl('battery_tests') . " bt ON ts.battery_id = bt.battery_id 
             AND tr.test_number = bt.test_number
         WHERE tr.session_id = ?
         ORDER BY tr.test_number
@@ -59,7 +60,7 @@ elseif ($method === 'POST') {
     $notes = sanitizeString($data['notes'] ?? '');
     
     // Prüfen ob Session existiert
-    $stmt = $conn->prepare("SELECT id FROM test_sessions WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id FROM " . tbl('test_sessions') . " WHERE id = ?");
     $stmt->bind_param("i", $session_id);
     $stmt->execute();
     if ($stmt->get_result()->num_rows === 0) {
@@ -68,7 +69,7 @@ elseif ($method === 'POST') {
     
     // Prüfen ob Result bereits existiert
     $stmt = $conn->prepare("
-        SELECT id FROM test_results 
+        SELECT id FROM " . tbl('test_results') . "
         WHERE session_id = ? AND test_number = ?
     ");
     $stmt->bind_param("ii", $session_id, $test_number);
@@ -78,7 +79,7 @@ elseif ($method === 'POST') {
     if ($existing) {
         // Update
         $stmt = $conn->prepare("
-            UPDATE test_results 
+            UPDATE " . tbl('test_results') . "
             SET score = ?, notes = ?
             WHERE session_id = ? AND test_number = ?
         ");
@@ -94,7 +95,7 @@ elseif ($method === 'POST') {
     } else {
         // Insert
         $stmt = $conn->prepare("
-            INSERT INTO test_results (session_id, test_number, score, notes)
+            INSERT INTO " . tbl('test_results') . " (session_id, test_number, score, notes)
             VALUES (?, ?, ?, ?)
         ");
         $stmt->bind_param("iiis", $session_id, $test_number, $score, $notes);
@@ -110,9 +111,9 @@ elseif ($method === 'POST') {
     // Erstelltes/Aktualisiertes Result zurückgeben
     $stmt = $conn->prepare("
         SELECT tr.*, bt.name as test_name, bt.ocean_dimension
-        FROM test_results tr
-        LEFT JOIN test_sessions ts ON tr.session_id = ts.id
-        LEFT JOIN battery_tests bt ON ts.battery_id = bt.battery_id 
+        FROM " . tbl('test_results') . " tr
+        LEFT JOIN " . tbl('test_sessions') . " ts ON tr.session_id = ts.id
+        LEFT JOIN " . tbl('battery_tests') . " bt ON ts.battery_id = bt.battery_id 
             AND tr.test_number = bt.test_number
         WHERE tr.id = ?
     ");
@@ -132,7 +133,7 @@ elseif ($method === 'DELETE') {
     $id = validateInteger($_GET['id'], 1, null, 'Result ID');
     
     // Prüfen ob Result existiert
-    $stmt = $conn->prepare("SELECT test_number, session_id FROM test_results WHERE id = ?");
+    $stmt = $conn->prepare("SELECT test_number, session_id FROM " . tbl('test_results') . " WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -144,7 +145,7 @@ elseif ($method === 'DELETE') {
     $resultData = $result->fetch_assoc();
     
     // Löschen
-    $stmt = $conn->prepare("DELETE FROM test_results WHERE id = ?");
+    $stmt = $conn->prepare("DELETE FROM " . tbl('test_results') . " WHERE id = ?");
     $stmt->bind_param("i", $id);
     
     if ($stmt->execute()) {

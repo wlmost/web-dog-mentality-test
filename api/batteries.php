@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Testbatterien API - CRUD Operations
  */
@@ -50,8 +51,8 @@ function listBatteries($conn) {
                 b.description,
                 b.created_at,
                 COUNT(bt.id) as test_count
-            FROM test_batteries b
-            LEFT JOIN battery_tests bt ON b.id = bt.battery_id
+            FROM " . tbl('test_batteries') . " b
+            LEFT JOIN " . tbl('battery_tests') . " bt ON b.id = bt.battery_id
             GROUP BY b.id
             ORDER BY b.name";
     
@@ -81,7 +82,7 @@ function getBattery($conn, $id) {
     }
     
     // Batterie-Info
-    $stmt = $conn->prepare("SELECT * FROM test_batteries WHERE id = ?");
+    $stmt = $conn->prepare("SELECT * FROM " . tbl('test_batteries') . " WHERE id = ?");
     $stmt->bind_param('i', $id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -105,7 +106,7 @@ function getBattery($conn, $id) {
             role_figurant,
             observation_criteria,
             rating_scale
-        FROM battery_tests
+        FROM " . tbl('battery_tests') . "
         WHERE battery_id = ?
         ORDER BY test_number
     ");
@@ -160,7 +161,7 @@ function handlePost($conn) {
     try {
         // Batterie erstellen
         $stmt = $conn->prepare("
-            INSERT INTO test_batteries (name, description)
+            INSERT INTO " . tbl('test_batteries') . " (name, description)
             VALUES (?, ?)
         ");
         
@@ -172,7 +173,7 @@ function handlePost($conn) {
         
         // Tests einfügen
         $stmt = $conn->prepare("
-            INSERT INTO battery_tests 
+            INSERT INTO " . tbl('battery_tests') . "
             (battery_id, test_number, test_name, ocean_dimension, max_value)
             VALUES (?, ?, ?, ?, ?)
         ");
@@ -235,7 +236,7 @@ function handlePut($conn) {
     $data = getJsonInput();
     
     // Prüfen ob Batterie existiert
-    $stmt = $conn->prepare("SELECT id FROM test_batteries WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id FROM " . tbl('test_batteries') . " WHERE id = ?");
     $stmt->bind_param('i', $id);
     $stmt->execute();
     if ($stmt->get_result()->num_rows === 0) {
@@ -266,7 +267,7 @@ function handlePut($conn) {
             $params[] = $id;
             $types .= 'i';
             
-            $sql = "UPDATE test_batteries SET " . implode(', ', $updates) . " WHERE id = ?";
+            $sql = "UPDATE " . tbl('test_batteries') . " SET " . implode(', ', $updates) . " WHERE id = ?";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param($types, ...$params);
             $stmt->execute();
@@ -275,13 +276,13 @@ function handlePut($conn) {
         // Tests aktualisieren (falls vorhanden)
         if (isset($data['tests']) && is_array($data['tests'])) {
             // Alte Tests löschen
-            $stmt = $conn->prepare("DELETE FROM battery_tests WHERE battery_id = ?");
+            $stmt = $conn->prepare("DELETE FROM " . tbl('battery_tests') . " WHERE battery_id = ?");
             $stmt->bind_param('i', $id);
             $stmt->execute();
             
             // Neue Tests einfügen
             $stmt = $conn->prepare("
-                INSERT INTO battery_tests 
+                INSERT INTO " . tbl('battery_tests') . "
                 (battery_id, test_number, test_name, ocean_dimension, max_value)
                 VALUES (?, ?, ?, ?, ?)
             ");
@@ -329,7 +330,7 @@ function handleDelete($conn) {
     }
     
     // Prüfen ob Batterie existiert
-    $stmt = $conn->prepare("SELECT name FROM test_batteries WHERE id = ?");
+    $stmt = $conn->prepare("SELECT name FROM " . tbl('test_batteries') . " WHERE id = ?");
     $stmt->bind_param('i', $id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -341,7 +342,7 @@ function handleDelete($conn) {
     $battery = $result->fetch_assoc();
     
     // Prüfen ob Batterie in Sessions verwendet wird
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM test_sessions WHERE battery_id = ?");
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM " . tbl('test_sessions') . " WHERE battery_id = ?");
     $stmt->bind_param('i', $id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -352,7 +353,7 @@ function handleDelete($conn) {
     }
     
     // Batterie löschen (Tests werden via CASCADE gelöscht)
-    $stmt = $conn->prepare("DELETE FROM test_batteries WHERE id = ?");
+    $stmt = $conn->prepare("DELETE FROM " . tbl('test_batteries') . " WHERE id = ?");
     $stmt->bind_param('i', $id);
     $stmt->execute();
     

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * API Endpoint: Test Sessions (mit User-Zuordnung)
  * 
@@ -13,12 +14,12 @@ require_once 'config.php';
 
 // Hilfsfunktion für Session-Validierung
 function getUserFromSession($conn, $token) {
-    $conn->query("DELETE FROM auth_sessions WHERE expires_at < NOW()");
+    $conn->query("DELETE FROM " . tbl('auth_sessions') . " WHERE expires_at < NOW()");
     
     $stmt = $conn->prepare("
         SELECT u.id, u.username, u.is_admin
-        FROM auth_sessions s
-        JOIN auth_users u ON u.id = s.user_id
+        FROM " . tbl('auth_sessions') . " s
+        JOIN " . tbl('auth_users') . " u ON u.id = s.user_id
         WHERE s.session_token = ? AND s.expires_at > NOW() AND u.is_active = TRUE
     ");
     $stmt->bind_param('s', $token);
@@ -81,9 +82,9 @@ if ($method === 'GET') {
                 ts.ideal_profile,
                 ts.owner_profile,
                 ts.ai_assessment
-            FROM test_sessions ts
-            JOIN dogs d ON ts.dog_id = d.id
-            JOIN test_batteries tb ON ts.battery_id = tb.id
+            FROM " . tbl('test_sessions') . " ts
+            JOIN " . tbl('dogs') . " d ON ts.dog_id = d.id
+            JOIN " . tbl('test_batteries') . " tb ON ts.battery_id = tb.id
             WHERE ts.id = ?" . $userFilter;
         
         $stmt = $conn->prepare($sql);
@@ -115,9 +116,9 @@ if ($method === 'GET') {
             $stmt = $conn->prepare("
                 SELECT tr.id, tr.test_number, tr.score, tr.notes,
                        bt.name as test_name, bt.ocean_dimension
-                FROM test_results tr
-                LEFT JOIN test_sessions ts ON tr.session_id = ts.id
-                LEFT JOIN battery_tests bt ON ts.battery_id = bt.battery_id 
+                FROM " . tbl('test_results') . " tr
+                LEFT JOIN " . tbl('test_sessions') . " ts ON tr.session_id = ts.id
+                LEFT JOIN " . tbl('battery_tests') . " bt ON ts.battery_id = bt.battery_id 
                     AND tr.test_number = bt.test_number
                 WHERE tr.session_id = ?
                 ORDER BY tr.test_number
@@ -149,11 +150,11 @@ if ($method === 'GET') {
         }
         
         if ($dogId) {
-            $sql = "SELECT * FROM v_session_overview WHERE dog_id = ?" . $userFilter . " ORDER BY session_date DESC";
+            $sql = "SELECT * FROM " . tbl('v_session_overview') . " WHERE dog_id = ?" . $userFilter . " ORDER BY session_date DESC";
             array_unshift($params, $dogId);
             $types = "i" . $types;
         } else {
-            $sql = "SELECT * FROM v_session_overview WHERE 1=1" . $userFilter . " ORDER BY session_date DESC";
+            $sql = "SELECT * FROM " . tbl('v_session_overview') . " WHERE 1=1" . $userFilter . " ORDER BY session_date DESC";
         }
         
         $stmt = $conn->prepare($sql);
@@ -215,14 +216,14 @@ elseif ($method === 'POST') {
     }
     
     // Prüfen ob Dog und Battery existieren
-    $stmt = $conn->prepare("SELECT id FROM dogs WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id FROM " . tbl('dogs') . " WHERE id = ?");
     $stmt->bind_param("i", $dog_id);
     $stmt->execute();
     if ($stmt->get_result()->num_rows === 0) {
         sendError('Hund nicht gefunden', 404);
     }
     
-    $stmt = $conn->prepare("SELECT id FROM test_batteries WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id FROM " . tbl('test_batteries') . " WHERE id = ?");
     $stmt->bind_param("i", $battery_id);
     $stmt->execute();
     if ($stmt->get_result()->num_rows === 0) {
@@ -231,7 +232,7 @@ elseif ($method === 'POST') {
     
     // Insert mit user_id
     $stmt = $conn->prepare("
-        INSERT INTO test_sessions 
+        INSERT INTO " . tbl('test_sessions') . "
         (dog_id, battery_id, user_id, session_notes, ideal_profile, owner_profile, ai_assessment)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     ");
@@ -246,7 +247,7 @@ elseif ($method === 'POST') {
         $newId = $conn->insert_id;
         
         // Neu erstellte Session zurückgeben
-        $stmt = $conn->prepare("SELECT * FROM v_session_overview WHERE session_id = ?");
+        $stmt = $conn->prepare("SELECT * FROM " . tbl('v_session_overview') . " WHERE session_id = ?");
         $stmt->bind_param("i", $newId);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -279,7 +280,7 @@ elseif ($method === 'PUT') {
     $data = getJsonInput();
     
     // Prüfen ob Session existiert und User berechtigt ist
-    $stmt = $conn->prepare("SELECT user_id FROM test_sessions WHERE id = ?");
+    $stmt = $conn->prepare("SELECT user_id FROM " . tbl('test_sessions') . " WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -331,7 +332,7 @@ elseif ($method === 'PUT') {
     }
     
     // Update ausführen
-    $sql = "UPDATE test_sessions SET " . implode(", ", $updates) . " WHERE id = ?";
+    $sql = "UPDATE " . tbl('test_sessions') . " SET " . implode(", ", $updates) . " WHERE id = ?";
     $params[] = $id;
     $types .= "i";
     
@@ -340,7 +341,7 @@ elseif ($method === 'PUT') {
     
     if ($stmt->execute()) {
         // Aktualisierte Session zurückgeben
-        $stmt = $conn->prepare("SELECT * FROM v_session_overview WHERE session_id = ?");
+        $stmt = $conn->prepare("SELECT * FROM " . tbl('v_session_overview') . " WHERE session_id = ?");
         $stmt->bind_param("i", $id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -371,7 +372,7 @@ elseif ($method === 'DELETE') {
     $id = validateInteger($_GET['id'], 1, null, 'Session ID');
     
     // Prüfen ob Session existiert und User berechtigt ist
-    $stmt = $conn->prepare("SELECT user_id, session_date FROM test_sessions WHERE id = ?");
+    $stmt = $conn->prepare("SELECT user_id, session_date FROM " . tbl('test_sessions') . " WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -390,7 +391,7 @@ elseif ($method === 'DELETE') {
     }
     
     // Löschen (CASCADE löscht automatisch zugehörige Results)
-    $stmt = $conn->prepare("DELETE FROM test_sessions WHERE id = ?");
+    $stmt = $conn->prepare("DELETE FROM " . tbl('test_sessions') . " WHERE id = ?");
     $stmt->bind_param("i", $id);
     
     if ($stmt->execute()) {

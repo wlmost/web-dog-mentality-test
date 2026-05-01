@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Datenbank-Konfiguration und Verbindung
  * 
@@ -56,12 +57,18 @@ function loadEnv($path = __DIR__ . '/../.env') {
 // .env laden
 loadEnv();
 
+// Lokale Konfiguration laden (installationsspezifisch, nicht im Repository)
+if (file_exists(__DIR__ . '/config.local.php')) {
+    require_once __DIR__ . '/config.local.php';
+}
+
 // Datenbank-Konfiguration
-define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-define('DB_USER', getenv('DB_USER') ?: 'root');
-define('DB_PASS', getenv('DB_PASS') ?: '');
-define('DB_NAME', getenv('DB_NAME') ?: 'dog_mentality');
-define('DB_CHARSET', 'utf8mb4');
+if (!defined('DB_HOST'))    define('DB_HOST',    getenv('DB_HOST')    ?: 'localhost');
+if (!defined('DB_USER'))    define('DB_USER',    getenv('DB_USER')    ?: 'root');
+if (!defined('DB_PASS'))    define('DB_PASS',    getenv('DB_PASS')    ?: '');
+if (!defined('DB_NAME'))    define('DB_NAME',    getenv('DB_NAME')    ?: 'dog_mentality');
+if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
+if (!defined('DB_PREFIX'))  define('DB_PREFIX',  getenv('DB_PREFIX')  ?: '');
 
 // OpenAI Konfiguration
 define('OPENAI_API_KEY', getenv('OPENAI_API_KEY') ?: '');
@@ -94,6 +101,11 @@ function getDbConnection() {
     }
     
     return $conn;
+}
+
+// Hilfsfunktion: Tabellennamen mit Präfix versehen
+function tbl(string $name): string {
+    return DB_PREFIX . $name;
 }
 
 // Helper: JSON Response senden

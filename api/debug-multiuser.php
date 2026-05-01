@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Debug-Script für Multi-User System
  * Zeigt den aktuellen Status der Datenbank und User-Zuordnungen
@@ -15,7 +16,7 @@ try {
     
     // 1. Prüfe ob user_id Spalte in dogs existiert
     echo "<h2>1. Schema-Check: dogs Tabelle</h2>";
-    $result = $conn->query("SHOW COLUMNS FROM dogs LIKE 'user_id'");
+    $result = $conn->query("SHOW COLUMNS FROM " . tbl('dogs') . " LIKE 'user_id'");
     if ($result->num_rows > 0) {
         echo "✅ <strong style='color:green'>user_id Spalte existiert in dogs</strong><br>";
     } else {
@@ -25,7 +26,7 @@ try {
     
     // 2. Prüfe ob user_id Spalte in test_sessions existiert
     echo "<h2>2. Schema-Check: test_sessions Tabelle</h2>";
-    $result = $conn->query("SHOW COLUMNS FROM test_sessions LIKE 'user_id'");
+    $result = $conn->query("SHOW COLUMNS FROM " . tbl('test_sessions') . " LIKE 'user_id'");
     if ($result->num_rows > 0) {
         echo "✅ <strong style='color:green'>user_id Spalte existiert in test_sessions</strong><br>";
     } else {
@@ -40,7 +41,7 @@ try {
             COUNT(*) AS total,
             SUM(CASE WHEN user_id IS NOT NULL THEN 1 ELSE 0 END) AS with_user,
             SUM(CASE WHEN user_id IS NULL THEN 1 ELSE 0 END) AS without_user
-        FROM dogs
+        FROM " . tbl('dogs') . "
     ");
     $stats = $result->fetch_assoc();
     echo "Gesamt: {$stats['total']}<br>";
@@ -50,7 +51,7 @@ try {
     if ($stats['without_user'] > 0) {
         echo "<br><strong style='color:orange'>⚠️ {$stats['without_user']} Hunde haben keine user_id!</strong><br>";
         echo "Diese werden von allen Usern gesehen.<br>";
-        echo "<pre>UPDATE dogs SET user_id = (SELECT id FROM auth_users WHERE is_admin = TRUE LIMIT 1) WHERE user_id IS NULL;</pre>";
+        echo "<pre>UPDATE " . tbl('dogs') . " SET user_id = (SELECT id FROM " . tbl('auth_users') . " WHERE is_admin = TRUE LIMIT 1) WHERE user_id IS NULL;</pre>";
     }
     
     // 4. Hunde gruppiert nach user_id
@@ -61,8 +62,8 @@ try {
             d.user_id,
             COUNT(*) AS anzahl_hunde,
             GROUP_CONCAT(d.dog_name SEPARATOR ', ') AS hunde
-        FROM dogs d
-        LEFT JOIN auth_users u ON d.user_id = u.id
+        FROM " . tbl('dogs') . " d
+        LEFT JOIN " . tbl('auth_users') . " u ON d.user_id = u.id
         GROUP BY d.user_id, u.username
         ORDER BY d.user_id
     ");
@@ -86,7 +87,7 @@ try {
             COUNT(*) AS total,
             SUM(CASE WHEN user_id IS NOT NULL THEN 1 ELSE 0 END) AS with_user,
             SUM(CASE WHEN user_id IS NULL THEN 1 ELSE 0 END) AS without_user
-        FROM test_sessions
+        FROM " . tbl('test_sessions') . "
     ");
     $stats = $result->fetch_assoc();
     echo "Gesamt: {$stats['total']}<br>";
@@ -95,14 +96,14 @@ try {
     
     if ($stats['without_user'] > 0) {
         echo "<br><strong style='color:orange'>⚠️ {$stats['without_user']} Sessions haben keine user_id!</strong><br>";
-        echo "<pre>UPDATE test_sessions SET user_id = (SELECT id FROM auth_users WHERE is_admin = TRUE LIMIT 1) WHERE user_id IS NULL;</pre>";
+        echo "<pre>UPDATE " . tbl('test_sessions') . " SET user_id = (SELECT id FROM " . tbl('auth_users') . " WHERE is_admin = TRUE LIMIT 1) WHERE user_id IS NULL;</pre>";
     }
     
     // 6. Alle Benutzer
     echo "<h2>6. Benutzer</h2>";
     $result = $conn->query("
         SELECT id, username, email, is_admin, is_active, created_at
-        FROM auth_users
+        FROM " . tbl('auth_users') . "
         ORDER BY is_admin DESC, id ASC
     ");
     echo "<table border='1' cellpadding='5'>";
@@ -127,27 +128,19 @@ try {
     $needsMigration = false;
     $needsAssignment = false;
     
-    $result = $conn->query("SHOW COLUMNS FROM dogs LIKE 'user_id'");
+    $result = $conn->query("SHOW COLUMNS FROM " . tbl('dogs') . " LIKE 'user_id'");
     if ($result->num_rows == 0) {
         $needsMigration = true;
         echo "❌ <strong>Migration erforderlich!</strong><br>";
-        echo "<pre>
--- Führen Sie diese SQL-Befehle aus:
-ALTER TABLE dogs ADD COLUMN user_id INT DEFAULT NULL AFTER id, ADD INDEX idx_user_id (user_id);
-ALTER TABLE test_sessions ADD COLUMN user_id INT DEFAULT NULL AFTER battery_id, ADD INDEX idx_user_id (user_id);
-</pre>";
+        echo "<pre>\n-- Führen Sie diese SQL-Befehle aus:\nALTER TABLE " . tbl('dogs') . " ADD COLUMN user_id INT DEFAULT NULL AFTER id, ADD INDEX idx_user_id (user_id);\nALTER TABLE " . tbl('test_sessions') . " ADD COLUMN user_id INT DEFAULT NULL AFTER battery_id, ADD INDEX idx_user_id (user_id);\n</pre>";
     }
     
-    $result = $conn->query("SELECT COUNT(*) as count FROM dogs WHERE user_id IS NULL");
+    $result = $conn->query("SELECT COUNT(*) as count FROM " . tbl('dogs') . " WHERE user_id IS NULL");
     $row = $result->fetch_assoc();
     if ($row['count'] > 0) {
         $needsAssignment = true;
         echo "⚠️ <strong>Alte Daten ohne Zuordnung gefunden!</strong><br>";
-        echo "<pre>
--- Alte Hunde und Sessions dem Admin zuordnen:
-UPDATE dogs SET user_id = (SELECT id FROM auth_users WHERE is_admin = TRUE LIMIT 1) WHERE user_id IS NULL;
-UPDATE test_sessions SET user_id = (SELECT id FROM auth_users WHERE is_admin = TRUE LIMIT 1) WHERE user_id IS NULL;
-</pre>";
+        echo "<pre>\n-- Alte Hunde und Sessions dem Admin zuordnen:\nUPDATE " . tbl('dogs') . " SET user_id = (SELECT id FROM " . tbl('auth_users') . " WHERE is_admin = TRUE LIMIT 1) WHERE user_id IS NULL;\nUPDATE " . tbl('test_sessions') . " SET user_id = (SELECT id FROM " . tbl('auth_users') . " WHERE is_admin = TRUE LIMIT 1) WHERE user_id IS NULL;\n</pre>";
     }
     
     if (!$needsMigration && !$needsAssignment) {

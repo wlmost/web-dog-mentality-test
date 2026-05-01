@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Debug für users.php
  */
@@ -20,12 +21,12 @@ try {
     
     // Test getUserFromSession Funktion
     function getUserFromSession($conn, $token) {
-        $conn->query("DELETE FROM auth_sessions WHERE expires_at < NOW()");
+        $conn->query("DELETE FROM " . tbl('auth_sessions') . " WHERE expires_at < NOW()");
         
         $stmt = $conn->prepare("
             SELECT u.id, u.username, u.is_admin
-            FROM auth_sessions s
-            JOIN auth_users u ON u.id = s.user_id
+            FROM " . tbl('auth_sessions') . " s
+            JOIN " . tbl('auth_users') . " u ON u.id = s.user_id
             WHERE s.session_token = ? AND s.expires_at > NOW() AND u.is_active = TRUE
         ");
         $stmt->bind_param('s', $token);
@@ -59,7 +60,7 @@ try {
             SELECT 
                 id, username, email, full_name, is_admin, is_active,
                 totp_enabled, last_login, created_at
-            FROM auth_users
+            FROM " . tbl('auth_users') . "
             ORDER BY created_at DESC
         ");
         $stmt->execute();

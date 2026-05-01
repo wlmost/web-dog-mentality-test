@@ -5,7 +5,7 @@
 -- Tabelle: auth_users
 -- Speichert Benutzer mit 2FA-Daten
 -- ===================================================================
-CREATE TABLE IF NOT EXISTS auth_users (
+CREATE TABLE IF NOT EXISTS {{PREFIX}}auth_users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS auth_users (
 -- Tabelle: auth_sessions
 -- Speichert aktive Login-Sessions
 -- ===================================================================
-CREATE TABLE IF NOT EXISTS auth_sessions (
+CREATE TABLE IF NOT EXISTS {{PREFIX}}auth_sessions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     session_token VARCHAR(64) NOT NULL UNIQUE,
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES {{PREFIX}}auth_users(id) ON DELETE CASCADE,
     INDEX idx_token (session_token),
     INDEX idx_expires (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
 -- Tabelle: auth_logs
 -- Speichert Login-Versuche für Audit
 -- ===================================================================
-CREATE TABLE IF NOT EXISTS auth_logs (
+CREATE TABLE IF NOT EXISTS {{PREFIX}}auth_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL,
     action ENUM('login_success', 'login_failed', 'logout', '2fa_success', '2fa_failed', 'account_locked') NOT NULL,
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS auth_logs (
 -- Standard-Admin erstellen
 -- Passwort: "admin123" (BITTE ÄNDERN!)
 -- ===================================================================
-INSERT INTO auth_users (username, password_hash, email, full_name, is_admin, totp_enabled) VALUES
+INSERT INTO {{PREFIX}}auth_users (username, password_hash, email, full_name, is_admin, totp_enabled) VALUES
 ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin@localhost', 'Administrator', TRUE, FALSE)
 ON DUPLICATE KEY UPDATE 
     is_admin = TRUE,

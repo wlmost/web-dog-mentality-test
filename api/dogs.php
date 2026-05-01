@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * API Endpoint: Dogs (Stammdaten) mit User-Zuordnung
  * 
@@ -13,12 +14,12 @@ require_once 'config.php';
 
 // Hilfsfunktion für Session-Validierung
 function getUserFromSession($conn, $token) {
-    $conn->query("DELETE FROM auth_sessions WHERE expires_at < NOW()");
+    $conn->query("DELETE FROM " . tbl('auth_sessions') . " WHERE expires_at < NOW()");
     
     $stmt = $conn->prepare("
         SELECT u.id, u.username, u.is_admin
-        FROM auth_sessions s
-        JOIN auth_users u ON u.id = s.user_id
+        FROM " . tbl('auth_sessions') . " s
+        JOIN " . tbl('auth_users') . " u ON u.id = s.user_id
         WHERE s.session_token = ? AND s.expires_at > NOW() AND u.is_active = TRUE
     ");
     $stmt->bind_param('s', $token);
@@ -61,7 +62,7 @@ if ($method === 'GET') {
             $userParam = $currentUser['id'];
         }
         
-        $sql = "SELECT * FROM dogs WHERE id = ?" . $userFilter;
+        $sql = "SELECT * FROM " . tbl('dogs') . " WHERE id = ?" . $userFilter;
         $stmt = $conn->prepare($sql);
         
         if ($userParam !== null) {
@@ -98,7 +99,7 @@ if ($method === 'GET') {
         if ($search) {
             $searchParam = "%$search%";
             $sql = "
-                SELECT * FROM dogs 
+                SELECT * FROM " . tbl('dogs') . "
                 WHERE (dog_name LIKE ? 
                    OR owner_name LIKE ? 
                    OR breed LIKE ?)" . $userFilter . "
@@ -107,7 +108,7 @@ if ($method === 'GET') {
             array_unshift($params, $searchParam, $searchParam, $searchParam);
             $types = "sss" . $types;
         } else {
-            $sql = "SELECT * FROM dogs WHERE 1=1" . $userFilter . " ORDER BY created_at DESC";
+            $sql = "SELECT * FROM " . tbl('dogs') . " WHERE 1=1" . $userFilter . " ORDER BY created_at DESC";
         }
         
         $stmt = $conn->prepare($sql);
@@ -156,7 +157,7 @@ elseif ($method === 'POST') {
     
     // Insert mit user_id
     $stmt = $conn->prepare("
-        INSERT INTO dogs 
+        INSERT INTO " . tbl('dogs') . "
         (user_id, owner_name, dog_name, breed, age_years, age_months, gender, neutered, intended_use)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
@@ -171,7 +172,7 @@ elseif ($method === 'POST') {
         $newId = $conn->insert_id;
         
         // Neu erstellten Hund zurückgeben
-        $stmt = $conn->prepare("SELECT * FROM dogs WHERE id = ?");
+        $stmt = $conn->prepare("SELECT * FROM " . tbl('dogs') . " WHERE id = ?");
         $stmt->bind_param("i", $newId);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -195,7 +196,7 @@ elseif ($method === 'PUT') {
     $data = getJsonInput();
     
     // Prüfen ob Hund existiert und User berechtigt ist
-    $stmt = $conn->prepare("SELECT user_id FROM dogs WHERE id = ?");
+    $stmt = $conn->prepare("SELECT user_id FROM " . tbl('dogs') . " WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -232,7 +233,7 @@ elseif ($method === 'PUT') {
     
     // Update
     $stmt = $conn->prepare("
-        UPDATE dogs SET
+        UPDATE " . tbl('dogs') . " SET
             owner_name = ?,
             dog_name = ?,
             breed = ?,
@@ -252,7 +253,7 @@ elseif ($method === 'PUT') {
     
     if ($stmt->execute()) {
         // Aktualisierten Hund zurückgeben
-        $stmt = $conn->prepare("SELECT * FROM dogs WHERE id = ?");
+        $stmt = $conn->prepare("SELECT * FROM " . tbl('dogs') . " WHERE id = ?");
         $stmt->bind_param("i", $id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -275,7 +276,7 @@ elseif ($method === 'DELETE') {
     $id = validateInteger($_GET['id'], 1, null, 'Dog ID');
     
     // Prüfen ob Hund existiert und User berechtigt ist
-    $stmt = $conn->prepare("SELECT user_id, dog_name FROM dogs WHERE id = ?");
+    $stmt = $conn->prepare("SELECT user_id, dog_name FROM " . tbl('dogs') . " WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -295,7 +296,7 @@ elseif ($method === 'DELETE') {
     }
     
     // Löschen (CASCADE löscht automatisch zugehörige Sessions)
-    $stmt = $conn->prepare("DELETE FROM dogs WHERE id = ?");
+    $stmt = $conn->prepare("DELETE FROM " . tbl('dogs') . " WHERE id = ?");
     $stmt->bind_param("i", $id);
     
     if ($stmt->execute()) {

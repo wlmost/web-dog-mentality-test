@@ -4,11 +4,11 @@
 -- ===================================================================
 -- Avatar-Spalte zur auth_users Tabelle hinzufügen
 -- ===================================================================
-ALTER TABLE auth_users 
+ALTER TABLE {{PREFIX}}auth_users 
 ADD COLUMN avatar VARCHAR(255) DEFAULT NULL AFTER full_name;
 
 -- Index für schnellere Suche
-CREATE INDEX idx_avatar ON auth_users(avatar);
+CREATE INDEX idx_avatar ON {{PREFIX}}auth_users(avatar);
 
 -- ===================================================================
 -- Upload-Verzeichnis sollte außerhalb von Git sein

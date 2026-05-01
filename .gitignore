@@ -8,6 +8,7 @@ uploads/*
 
 # Environment
 .env
+api/config.local.php
 
 # IDE
 .vscode/
@@ -31,3 +32,12 @@ composer.lock
 
 # 2FA Secrets
 2fa*
+
+# ZIP Archive
+*.zip
+
+# Wizard lock file
+wizard/.lock
+
+# Build-Output
+dist/

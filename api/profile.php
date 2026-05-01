@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * User Profile Management API
  * Ermöglicht Benutzern die Bearbeitung ihres eigenen Profils
@@ -19,12 +20,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Hilfsfunktion für Session-Validierung
 function getUserFromSession($conn, $token) {
     // Abgelaufene Sessions löschen
-    $conn->query("DELETE FROM auth_sessions WHERE expires_at < NOW()");
+    $conn->query("DELETE FROM " . tbl('auth_sessions') . " WHERE expires_at < NOW()");
     
     $stmt = $conn->prepare("
         SELECT u.id, u.username, u.email, u.full_name, u.avatar, u.is_admin
-        FROM auth_sessions s
-        JOIN auth_users u ON u.id = s.user_id
+        FROM " . tbl('auth_sessions') . " s
+        JOIN " . tbl('auth_users') . " u ON u.id = s.user_id
         WHERE s.session_token = ? AND s.expires_at > NOW() AND u.is_active = TRUE
     ");
     $stmt->bind_param('s', $token);
@@ -120,7 +121,7 @@ function getProfile($conn, $currentUser) {
         SELECT 
             id, username, email, full_name, avatar, 
             totp_enabled, last_login, created_at
-        FROM auth_users
+        FROM " . tbl('auth_users') . "
         WHERE id = ?
     ");
     $stmt->bind_param('i', $currentUser['id']);
@@ -174,7 +175,7 @@ function updateUserInfo($conn, $currentUser, $input) {
     // Email-Duplikat prüfen
     if ($email !== null) {
         $stmt = $conn->prepare("
-            SELECT id FROM auth_users 
+            SELECT id FROM " . tbl('auth_users') . "
             WHERE email = ? AND id != ?
         ");
         $stmt->bind_param('si', $email, $currentUser['id']);
@@ -186,7 +187,7 @@ function updateUserInfo($conn, $currentUser, $input) {
     
     // Update durchführen
     $stmt = $conn->prepare("
-        UPDATE auth_users 
+        UPDATE " . tbl('auth_users') . "
         SET email = ?, full_name = ?, updated_at = NOW()
         WHERE id = ?
     ");
@@ -219,7 +220,7 @@ function changeUserPassword($conn, $currentUser, $input) {
     
     // Aktuelles Passwort prüfen
     $stmt = $conn->prepare("
-        SELECT password_hash FROM auth_users WHERE id = ?
+        SELECT password_hash FROM " . tbl('auth_users') . " WHERE id = ?
     ");
     $stmt->bind_param('i', $currentUser['id']);
     $stmt->execute();
@@ -234,7 +235,7 @@ function changeUserPassword($conn, $currentUser, $input) {
     $newHash = password_hash($newPassword, PASSWORD_BCRYPT);
     
     $stmt = $conn->prepare("
-        UPDATE auth_users 
+        UPDATE " . tbl('auth_users') . "
         SET password_hash = ?, updated_at = NOW()
         WHERE id = ?
     ");
@@ -246,7 +247,7 @@ function changeUserPassword($conn, $currentUser, $input) {
     
     // Alle anderen Sessions des Benutzers löschen (außer der aktuellen)
     $stmt = $conn->prepare("
-        DELETE FROM auth_sessions 
+        DELETE FROM " . tbl('auth_sessions') . "
         WHERE user_id = ? AND session_token != ?
     ");
     $sessionToken = str_replace('Bearer ', '', $_SERVER['HTTP_AUTHORIZATION'] ?? '');
@@ -310,7 +311,7 @@ function uploadAvatar($conn, $currentUser) {
     $avatarPath = 'uploads/avatars/' . $filename;
     
     $stmt = $conn->prepare("
-        UPDATE auth_users 
+        UPDATE " . tbl('auth_users') . "
         SET avatar = ?, updated_at = NOW()
         WHERE id = ?
     ");
@@ -346,7 +347,7 @@ function deleteUserAvatar($conn, $currentUser) {
     
     // Aus Datenbank entfernen
     $stmt = $conn->prepare("
-        UPDATE auth_users 
+        UPDATE " . tbl('auth_users') . "
         SET avatar = NULL, updated_at = NOW()
         WHERE id = ?
     ");

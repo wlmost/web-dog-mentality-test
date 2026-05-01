@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * API Endpoint: OCEAN Analysis
  * 
@@ -19,7 +20,7 @@ if ($method === 'GET') {
     $session_id = validateInteger($_GET['session_id'], 1, null, 'Session ID');
     
     // Prüfen ob Session existiert
-    $stmt = $conn->prepare("SELECT id, battery_id FROM test_sessions WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id, battery_id FROM " . tbl('test_sessions') . " WHERE id = ?");
     $stmt->bind_param("i", $session_id);
     $stmt->execute();
     $sessionResult = $stmt->get_result();
@@ -34,7 +35,7 @@ if ($method === 'GET') {
     // OCEAN-Scores berechnen (View nutzen)
     $stmt = $conn->prepare("
         SELECT ocean_dimension, total_score, test_count, average_score
-        FROM v_ocean_scores
+        FROM " . tbl('v_ocean_scores') . "
         WHERE session_id = ?
     ");
     $stmt->bind_param("i", $session_id);
@@ -87,7 +88,7 @@ if ($method === 'GET') {
     }
     
     // Anzahl abgeschlossener Tests
-    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM test_results WHERE session_id = ?");
+    $stmt = $conn->prepare("SELECT COUNT(*) as total FROM " . tbl('test_results') . " WHERE session_id = ?");
     $stmt->bind_param("i", $session_id);
     $stmt->execute();
     $totalTests = $stmt->get_result()->fetch_assoc()['total'];
@@ -95,7 +96,7 @@ if ($method === 'GET') {
     // Profile aus Session laden (falls vorhanden)
     $stmt = $conn->prepare("
         SELECT ideal_profile, owner_profile, ai_assessment 
-        FROM test_sessions 
+        FROM " . tbl('test_sessions') . "
         WHERE id = ?
     ");
     $stmt->bind_param("i", $session_id);

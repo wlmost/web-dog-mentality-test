@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * CSV Import für Testbatterien
  * Format: Semikolon-getrennt, UTF-8
@@ -138,7 +139,7 @@ function importBattery($conn, $csvData, $filename) {
     $batteryName = pathinfo($filename, PATHINFO_FILENAME);
     
     // Prüfen ob Batterie bereits existiert
-    $checkStmt = $conn->prepare("SELECT id FROM test_batteries WHERE name = ?");
+    $checkStmt = $conn->prepare("SELECT id FROM " . tbl('test_batteries') . " WHERE name = ?");
     $checkStmt->bind_param('s', $batteryName);
     $checkStmt->execute();
     $result = $checkStmt->get_result();
@@ -151,7 +152,7 @@ function importBattery($conn, $csvData, $filename) {
     
     // Batterie erstellen
     $stmt = $conn->prepare("
-        INSERT INTO test_batteries (name, description, created_at)
+        INSERT INTO " . tbl('test_batteries') . " (name, description, created_at)
         VALUES (?, 'Importiert aus CSV', NOW())
     ");
     $stmt->bind_param('s', $batteryName);
@@ -166,7 +167,7 @@ function importBattery($conn, $csvData, $filename) {
     // Tests importieren
     $importedTests = 0;
     $stmt = $conn->prepare("
-        INSERT INTO battery_tests (
+        INSERT INTO " . tbl('battery_tests') . " (
             battery_id, 
             test_number, 
             ocean_dimension, 

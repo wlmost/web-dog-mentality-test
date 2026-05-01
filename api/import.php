@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Excel Import für Testbatterien
  * Verwendet PhpSpreadsheet für .xlsx Dateien
@@ -179,7 +180,7 @@ function handleImport($conn) {
         try {
             // Batterie erstellen
             $stmt = $conn->prepare("
-                INSERT INTO test_batteries (name, description)
+                INSERT INTO " . tbl('test_batteries') . " (name, description)
                 VALUES (?, ?)
             ");
             $stmt->bind_param('ss', $batteryName, $batteryDescription);
@@ -189,7 +190,7 @@ function handleImport($conn) {
             
             // Tests einfügen
             $stmt = $conn->prepare("
-                INSERT INTO battery_tests 
+                INSERT INTO " . tbl('battery_tests') . "
                 (battery_id, test_number, test_name, ocean_dimension, max_value)
                 VALUES (?, ?, ?, ?, ?)
             ");

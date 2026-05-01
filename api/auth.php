@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Authentication & 2FA API
  * Handles login, 2FA verification, session management
@@ -111,7 +112,7 @@ function handleLogin($conn, $input) {
     $stmt = $conn->prepare("
         SELECT id, username, password_hash, is_admin, is_active, 
                totp_enabled, totp_secret, failed_attempts, locked_until
-        FROM auth_users 
+        FROM " . tbl('auth_users') . "
         WHERE username = ?
     ");
     $stmt->bind_param('s', $username);
@@ -149,7 +150,7 @@ function handleLogin($conn, $input) {
         }
         
         $stmt = $conn->prepare("
-            UPDATE auth_users 
+            UPDATE " . tbl('auth_users') . "
             SET failed_attempts = ?, locked_until = ?
             WHERE id = ?
         ");
@@ -163,7 +164,7 @@ function handleLogin($conn, $input) {
     
     // Passwort korrekt - Failed attempts zurücksetzen
     $stmt = $conn->prepare("
-        UPDATE auth_users 
+        UPDATE " . tbl('auth_users') . "
         SET failed_attempts = 0, locked_until = NULL
         WHERE id = ?
     ");
@@ -213,7 +214,7 @@ function verify2FA($conn, $input) {
     // Benutzer laden
     $stmt = $conn->prepare("
         SELECT id, username, totp_secret, backup_codes
-        FROM auth_users 
+        FROM " . tbl('auth_users') . "
         WHERE id = ? AND totp_enabled = TRUE
     ");
     $stmt->bind_param('i', $user_id);
@@ -243,7 +244,7 @@ function verify2FA($conn, $input) {
             // Backup Code verbrauchen
             $backup_codes = array_values(array_diff($backup_codes, [$code_hash]));
             $stmt = $conn->prepare("
-                UPDATE auth_users 
+                UPDATE " . tbl('auth_users') . "
                 SET backup_codes = ?
                 WHERE id = ?
             ");
@@ -265,7 +266,7 @@ function verify2FA($conn, $input) {
     logAuthEvent($conn, $user['username'], 'login_success');
     
     // User-Info mit is_admin laden
-    $stmt = $conn->prepare("SELECT is_admin FROM auth_users WHERE id = ?");
+    $stmt = $conn->prepare("SELECT is_admin FROM " . tbl('auth_users') . " WHERE id = ?");
     $stmt->bind_param('i', $user['id']);
     $stmt->execute();
     $userInfo = $stmt->get_result()->fetch_assoc();
@@ -307,7 +308,7 @@ function setup2FA($conn, $input) {
     
     // In DB speichern (noch nicht aktiviert)
     $stmt = $conn->prepare("
-        UPDATE auth_users 
+        UPDATE " . tbl('auth_users') . "
         SET totp_secret = ?, backup_codes = ?
         WHERE id = ?
     ");
@@ -344,7 +345,7 @@ function enable2FA($conn, $input) {
     // User-Daten mit Secret holen
     $stmt = $conn->prepare("
         SELECT totp_secret, backup_codes 
-        FROM auth_users 
+        FROM " . tbl('auth_users') . "
         WHERE id = ? AND totp_secret IS NOT NULL
     ");
     $stmt->bind_param('i', $user['id']);
@@ -363,7 +364,7 @@ function enable2FA($conn, $input) {
     
     // 2FA aktivieren
     $stmt = $conn->prepare("
-        UPDATE auth_users 
+        UPDATE " . tbl('auth_users') . "
         SET totp_enabled = TRUE 
         WHERE id = ?
     ");
@@ -395,7 +396,7 @@ function disable2FA($conn, $input) {
     
     // 2FA deaktivieren und Secrets löschen
     $stmt = $conn->prepare("
-        UPDATE auth_users 
+        UPDATE " . tbl('auth_users') . "
         SET totp_enabled = FALSE,
             totp_secret = NULL,
             backup_codes = NULL
@@ -430,7 +431,7 @@ function verifySession($conn, $input) {
     // Erweiterte User-Daten für Session-Verifizierung
     $stmt = $conn->prepare("
         SELECT totp_enabled, email, full_name, avatar, created_at, last_login
-        FROM auth_users
+        FROM " . tbl('auth_users') . "
         WHERE id = ?
     ");
     $stmt->bind_param('i', $user['id']);
@@ -461,7 +462,7 @@ function verifySession($conn, $input) {
 function handleLogout($conn, $token) {
     $token = str_replace('Bearer ', '', $token);
     
-    $stmt = $conn->prepare("DELETE FROM auth_sessions WHERE session_token = ?");
+    $stmt = $conn->prepare("DELETE FROM " . tbl('auth_sessions') . " WHERE session_token = ?");
     $stmt->bind_param('s', $token);
     $stmt->execute();
     
@@ -486,7 +487,7 @@ function changePassword($conn, $input) {
     }
     
     // Altes Passwort prüfen
-    $stmt = $conn->prepare("SELECT password_hash FROM auth_users WHERE id = ?");
+    $stmt = $conn->prepare("SELECT password_hash FROM " . tbl('auth_users') . " WHERE id = ?");
     $stmt->bind_param('i', $user['id']);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -498,7 +499,7 @@ function changePassword($conn, $input) {
     
     // Neues Passwort setzen
     $hash = password_hash($new_password, PASSWORD_BCRYPT);
-    $stmt = $conn->prepare("UPDATE auth_users SET password_hash = ? WHERE id = ?");
+    $stmt = $conn->prepare("UPDATE " . tbl('auth_users') . " SET password_hash = ? WHERE id = ?");
     $stmt->bind_param('si', $hash, $user['id']);
     $stmt->execute();
     
@@ -516,14 +517,14 @@ function createSession($conn, $user_id) {
     $ua = $_SERVER['HTTP_USER_AGENT'] ?? null;
     
     $stmt = $conn->prepare("
-        INSERT INTO auth_sessions (user_id, session_token, ip_address, user_agent, expires_at)
+        INSERT INTO " . tbl('auth_sessions') . " (user_id, session_token, ip_address, user_agent, expires_at)
         VALUES (?, ?, ?, ?, ?)
     ");
     $stmt->bind_param('issss', $user_id, $token, $ip, $ua, $expires);
     $stmt->execute();
     
     // Last login aktualisieren
-    $stmt = $conn->prepare("UPDATE auth_users SET last_login = NOW() WHERE id = ?");
+    $stmt = $conn->prepare("UPDATE " . tbl('auth_users') . " SET last_login = NOW() WHERE id = ?");
     $stmt->bind_param('i', $user_id);
     $stmt->execute();
     
@@ -532,12 +533,12 @@ function createSession($conn, $user_id) {
 
 function getUserFromSession($conn, $token) {
     // Abgelaufene Sessions löschen
-    $conn->query("DELETE FROM auth_sessions WHERE expires_at < NOW()");
+    $conn->query("DELETE FROM " . tbl('auth_sessions') . " WHERE expires_at < NOW()");
     
     $stmt = $conn->prepare("
         SELECT u.id, u.username, u.is_admin
-        FROM auth_sessions s
-        JOIN auth_users u ON u.id = s.user_id
+        FROM " . tbl('auth_sessions') . " s
+        JOIN " . tbl('auth_users') . " u ON u.id = s.user_id
         WHERE s.session_token = ? AND s.expires_at > NOW() AND u.is_active = TRUE
     ");
     $stmt->bind_param('s', $token);
@@ -611,7 +612,7 @@ function logAuthEvent($conn, $username, $action, $note = null) {
     $ua = $_SERVER['HTTP_USER_AGENT'] ?? null;
     
     $stmt = $conn->prepare("
-        INSERT INTO auth_logs (username, action, ip_address, user_agent)
+        INSERT INTO " . tbl('auth_logs') . " (username, action, ip_address, user_agent)
         VALUES (?, ?, ?, ?)
     ");
     $stmt->bind_param('ssss', $username, $action, $ip, $ua);
