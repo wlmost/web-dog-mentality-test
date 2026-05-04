@@ -68,6 +68,20 @@ body {
     display: block;
 }
 
+/* Abstand vor Überschriften in Tab-Sections */
+.tab-content h2,
+.tab-content h3,
+.tab-content h4 {
+    margin-top: 1.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.tab-content .row:first-child h2,
+.tab-content .row:first-child h3,
+.tab-content .row:first-child h4 {
+    margin-top: 0;
+}
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }

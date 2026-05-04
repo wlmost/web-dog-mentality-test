@@ -66,6 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $conn = WizardHelper::testConnection($db['host'], $db['user'], $db['pass'], $db['name']);
             $log  = [];
 
+            // Bestehende Tabellen / Views mit diesem Präfix löschen
+            $dropLog = WizardHelper::dropAllTables($conn, $prefix, $db['name']);
+            $log     = array_merge($log, $dropLog);
+
             $schemaFiles = [
                 __DIR__ . '/../database/schema.sql',
                 __DIR__ . '/../database/schema-auth.sql',
@@ -155,12 +159,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             WizardHelper::lock();
 
             // Session bereinigen
-            unset($_SESSION['install_step'], $_SESSION['install_db'], $_SESSION['install_prefix'], $_SESSION['install_log']);
+            unset($_SESSION['install_step'], $_SESSION['install_db'], $_SESSION['install_prefix'], $_SESSION['install_log'], $_SESSION['install_config']);
+
+            echo renderPage('Installation abgeschlossen', renderFinished());
+            exit();
+        } catch (RuntimeException $e) {
+            // Keine Schreibrechte – Config-Inhalt für manuelle Übertragung per FTP bereitstellen
+            $configContent = WizardHelper::generateConfigContent($db['host'], $db['user'], $db['pass'], $db['name'], $prefix);
+            $_SESSION['install_config'] = $configContent;
+            $step = 5;
+            $error = 'Die Datei <code>api/config.local.php</code> konnte nicht automatisch geschrieben werden (keine Schreibrechte). Bitte legen Sie die Datei manuell per FTP an.';
+        }
+    }
+
+    // Schritt 5 (manuell): Nur Lock setzen, Datei wurde per FTP hochgeladen
+    elseif ($action === 'finalize_manual') {
+        try {
+            if (!WizardHelper::isConfigured()) {
+                throw new RuntimeException('api/config.local.php wurde noch nicht hochgeladen. Bitte zuerst die Datei per FTP übertragen.');
+            }
+            WizardHelper::lock();
+
+            // Session bereinigen
+            unset($_SESSION['install_step'], $_SESSION['install_db'], $_SESSION['install_prefix'], $_SESSION['install_log'], $_SESSION['install_config']);
 
             echo renderPage('Installation abgeschlossen', renderFinished());
             exit();
         } catch (RuntimeException $e) {
             $error = $e->getMessage();
+            $step  = 5;
         }
     }
 }
@@ -237,13 +264,16 @@ function renderStep(int $step, string $error, array $db, string $prefix, array $
 
         case 3:
             $prefixDisplay = htmlspecialchars($prefix);
+            $logHtml = $log ? WizardHelper::renderLog($log) : '';
             $html .= <<<HTML
             <p>Gewählter Präfix: <strong>$prefixDisplay</strong></p>
-            <p>Die folgenden Schema-Dateien werden jetzt eingespielt:</p>
+            <div class="alert warning">⚠️ <strong>Achtung:</strong> Alle bestehenden Tabellen und Views mit dem Präfix <code>$prefixDisplay</code> werden unwiderruflich gelöscht und neu angelegt.</div>
+            <p>Die folgenden Schema-Dateien werden eingespielt:</p>
             <ul>
                 <li>database/schema.sql</li>
                 <li>database/schema-auth.sql</li>
             </ul>
+            $logHtml
             <form method="post">
                 <input type="hidden" name="csrf_token" value="$csrf">
                 <input type="hidden" name="action" value="run_schema">
@@ -284,15 +314,41 @@ function renderStep(int $step, string $error, array $db, string $prefix, array $
             break;
 
         case 5:
-            $html .= <<<HTML
-            <p class="success">✅ Admin-Benutzer wurde angelegt.</p>
-            <p>Klicken Sie auf <strong>„Installation abschließen"</strong>, um die Konfigurationsdatei zu schreiben und den Wizard zu sperren.</p>
-            <form method="post">
-                <input type="hidden" name="csrf_token" value="$csrf">
-                <input type="hidden" name="action" value="finalize">
-                <button type="submit" class="primary">Installation abschließen ✓</button>
-            </form>
-            HTML;
+            $configContent = $_SESSION['install_config'] ?? '';
+            if ($configContent !== '') {
+                // Fallback: keine Schreibrechte → manuelle FTP-Übertragung
+                $configEscaped = htmlspecialchars($configContent, ENT_QUOTES, 'UTF-8');
+                $html .= <<<HTML
+                <div class="alert warning">
+                    <strong>⚠️ Manuelle Konfiguration erforderlich</strong><br>
+                    Der Wizard konnte <code>api/config.local.php</code> nicht automatisch schreiben (fehlende Schreibrechte auf dem Server).<br>
+                    Bitte führen Sie die folgenden Schritte aus:
+                    <ol style="margin-top:.75rem;padding-left:1.2rem;">
+                        <li>Kopieren Sie den Inhalt aus dem Textfeld unten.</li>
+                        <li>Erstellen Sie die Datei <strong>api/config.local.php</strong> auf Ihrem Rechner und fügen Sie den Inhalt ein.</li>
+                        <li>Laden Sie die Datei per FTP in das Verzeichnis <code>api/</code> auf dem Server hoch.</li>
+                        <li>Klicken Sie anschließend auf <strong>„Fertigstellen"</strong>.</li>
+                    </ol>
+                </div>
+                <label><strong>Inhalt für <code>api/config.local.php</code>:</strong></label>
+                <textarea rows="10" style="width:100%;font-family:monospace;font-size:.85rem;margin-top:.5rem;padding:.5rem;border:1px solid #ccc;border-radius:4px;" readonly>$configEscaped</textarea>
+                <form method="post" style="margin-top:1rem;">
+                    <input type="hidden" name="csrf_token" value="$csrf">
+                    <input type="hidden" name="action" value="finalize_manual">
+                    <button type="submit" class="primary">Datei wurde hochgeladen – Fertigstellen ✓</button>
+                </form>
+                HTML;
+            } else {
+                $html .= <<<HTML
+                <p class="success">✅ Admin-Benutzer wurde angelegt.</p>
+                <p>Klicken Sie auf <strong>„Installation abschließen"</strong>, um die Konfigurationsdatei zu schreiben und den Wizard zu sperren.</p>
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="$csrf">
+                    <input type="hidden" name="action" value="finalize">
+                    <button type="submit" class="primary">Installation abschließen ✓</button>
+                </form>
+                HTML;
+            }
             break;
     }
 

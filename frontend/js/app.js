@@ -42,9 +42,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeApp() {
-    // Prüfe Authentifizierung
-    await checkAuthentication();
-    
+    // Dashboard ausblenden bis Auth-Check abgeschlossen
+    document.body.style.visibility = 'hidden';
+
+    const authenticated = await checkAuthentication();
+    if (!authenticated) {
+        return; // Redirect läuft, nichts weiter tun
+    }
+
+    document.body.style.visibility = 'visible';
     setupEventListeners();
     await loadBatteriesList();
     switchTab('batteries');
@@ -56,7 +62,7 @@ async function checkAuthentication() {
     
     if (!sessionToken) {
         window.location.href = 'login.html';
-        return;
+        return false;
     }
     
     try {
@@ -65,7 +71,7 @@ async function checkAuthentication() {
         if (!result.success || !result.valid) {
             localStorage.removeItem('session_token');
             window.location.href = 'login.html';
-            return;
+            return false;
         }
         
         // Admin-Tab anzeigen, wenn Benutzer Admin ist
@@ -80,11 +86,13 @@ async function checkAuthentication() {
         
         // Benutzerdaten global speichern
         state.currentUser = result.user;
+        return true;
         
     } catch (error) {
         console.error('Auth check failed:', error);
         localStorage.removeItem('session_token');
         window.location.href = 'login.html';
+        return false;
     }
 }
 

@@ -9,14 +9,34 @@ class WizardHelper
     /** Prüft ob der Wizard gesperrt ist (nach erfolgreicher Installation) */
     public static function isLocked(): bool
     {
-        return file_exists(__DIR__ . '/.lock');
+        $lockFile = __DIR__ . '/.lock';
+        if (!file_exists($lockFile)) {
+            return false;
+        }
+        // Placeholder-Inhalt = noch nicht gesperrt
+        return trim((string)file_get_contents($lockFile)) !== 'inactive';
     }
 
-    /** Setzt Lock-File nach erfolgreicher Installation */
+    /**
+     * Setzt Lock-File nach erfolgreicher Installation.
+     * Schreibt Timestamp in die bereits per FTP/Git vorhandene Placeholder-Datei.
+     * Das Überschreiben einer existierenden Datei erfordert nur Schreibrecht
+     * auf die Datei selbst, nicht auf das Verzeichnis.
+     */
     public static function lock(): void
     {
-        if (file_put_contents(__DIR__ . '/.lock', date('Y-m-d H:i:s')) === false) {
-            throw new RuntimeException('Wizard-Lock konnte nicht geschrieben werden. Bitte Schreibrechte auf dem wizard/-Verzeichnis prüfen.');
+        $lockFile = __DIR__ . '/.lock';
+        if (!file_exists($lockFile)) {
+            throw new RuntimeException(
+                'Die Datei wizard/.lock fehlt auf dem Server. '
+                . 'Bitte laden Sie die Datei aus dem Repository per FTP in das wizard/-Verzeichnis hoch und versuchen Sie es erneut.'
+            );
+        }
+        if (file_put_contents($lockFile, date('Y-m-d H:i:s')) === false) {
+            throw new RuntimeException(
+                'Wizard-Lock konnte nicht geschrieben werden. '
+                . 'Bitte prüfen Sie die Schreibrechte der Datei wizard/.lock (mindestens 644 empfohlen).'
+            );
         }
     }
 
@@ -31,6 +51,51 @@ class WizardHelper
             throw new RuntimeException('Charset-Fehler: ' . $conn->error);
         }
         return $conn;
+    }
+
+    /**
+     * Löscht alle Tabellen und Views mit dem angegebenen Präfix.
+     * Deaktiviert FK-Checks temporär, damit die Reihenfolge keine Rolle spielt.
+     * Gibt ein Log-Array zurück.
+     */
+    public static function dropAllTables(mysqli $conn, string $prefix, string $dbName): array
+    {
+        $log = [];
+        $conn->query('SET FOREIGN_KEY_CHECKS = 0');
+
+        $escapedDb     = $conn->real_escape_string($dbName);
+        $likePattern   = $conn->real_escape_string($prefix) . '%';
+
+        // Views löschen
+        $result = $conn->query(
+            "SELECT TABLE_NAME FROM information_schema.VIEWS
+             WHERE TABLE_SCHEMA = '$escapedDb' AND TABLE_NAME LIKE '$likePattern'"
+        );
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $view = $row['TABLE_NAME'];
+                $conn->query("DROP VIEW IF EXISTS `$view`");
+                $log[] = "✅ View gelöscht: $view";
+            }
+        }
+
+        // Tabellen löschen
+        $result = $conn->query(
+            "SELECT TABLE_NAME FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = '$escapedDb'
+               AND TABLE_TYPE = 'BASE TABLE'
+               AND TABLE_NAME LIKE '$likePattern'"
+        );
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $table = $row['TABLE_NAME'];
+                $conn->query("DROP TABLE IF EXISTS `$table`");
+                $log[] = "✅ Tabelle gelöscht: $table";
+            }
+        }
+
+        $conn->query('SET FOREIGN_KEY_CHECKS = 1');
+        return $log;
     }
 
     /**
@@ -113,8 +178,8 @@ class WizardHelper
         return file_exists(__DIR__ . '/../api/config.local.php');
     }
 
-    /** Schreibt config.local.php mit den übergebenen Werten */
-    public static function writeConfig(string $host, string $user, string $pass, string $name, string $prefix): void
+    /** Erzeugt den Inhalt der config.local.php als String */
+    public static function generateConfigContent(string $host, string $user, string $pass, string $name, string $prefix): string
     {
         $host   = addslashes($host);
         $user   = addslashes($user);
@@ -122,7 +187,7 @@ class WizardHelper
         $name   = addslashes($name);
         $prefix = addslashes($prefix);
 
-        $content = "<?php\n"
+        return "<?php\n"
             . "declare(strict_types=1);\n"
             . "// Automatisch generiert vom Installations-Wizard – " . date('Y-m-d H:i:s') . "\n"
             . "// Diese Datei nicht ins Repository einchecken!\n\n"
@@ -131,10 +196,48 @@ class WizardHelper
             . "define('DB_PASS',   '$pass');\n"
             . "define('DB_NAME',   '$name');\n"
             . "define('DB_PREFIX', '$prefix');\n";
+    }
 
-        if (file_put_contents(__DIR__ . '/../api/config.local.php', $content) === false) {
-            throw new RuntimeException('config.local.php konnte nicht geschrieben werden. Bitte Schreibrechte prüfen.');
+    /**
+     * Schreibt Konfiguration in api/config.local.php.example (muss 666 haben),
+     * benennt sie dann in config.local.php um und setzt Rechte auf 600.
+     */
+    public static function writeConfig(string $host, string $user, string $pass, string $name, string $prefix): void
+    {
+        $examplePath = __DIR__ . '/../api/config.local.php.example';
+        $targetPath  = __DIR__ . '/../api/config.local.php';
+
+        if (!file_exists($examplePath)) {
+            throw new RuntimeException(
+                'Die Datei api/config.local.php.example fehlt auf dem Server. '
+                . 'Bitte laden Sie sie aus dem Repository per FTP in das api/-Verzeichnis hoch (Rechte: 666).'
+            );
         }
+
+        $content = self::generateConfigContent($host, $user, $pass, $name, $prefix);
+
+        // Schritt 1: Daten in die beschreibbare .example-Datei schreiben
+        if (file_put_contents($examplePath, $content) === false) {
+            throw new RuntimeException(
+                'api/config.local.php.example konnte nicht beschrieben werden. '
+                . 'Bitte prüfen Sie die Dateirechte (mindestens 666 empfohlen).'
+            );
+        }
+
+        // Schritt 2: Umbennen in config.local.php
+        // Existierende Zieldatei ggf. vorher entfernen
+        if (file_exists($targetPath)) {
+            @unlink($targetPath);
+        }
+        if (!rename($examplePath, $targetPath)) {
+            throw new RuntimeException(
+                'api/config.local.php.example konnte nicht in config.local.php umbenannt werden. '
+                . 'Bitte prüfen Sie die Schreibrechte auf dem api/-Verzeichnis.'
+            );
+        }
+
+        // Schritt 3: Rechte absichern
+        @chmod($targetPath, 0600);
     }
 
     /** Validiert den Tabellenpräfix: nur a-z, 0-9, _ ; max. 20 Zeichen */

@@ -1,9 +1,4 @@
 <?php
-// Kopiere diese Datei nach config.local.php und passe die Werte an.
-// config.local.php wird NICHT ins Repository eingecheckt.
-
-define('DB_HOST',   'localhost');
-define('DB_USER',   'dein_datenbankbenutzer');
-define('DB_PASS',   'dein_passwort');
-define('DB_NAME',   'dein_datenbankname');
-define('DB_PREFIX', 'dmt_');  // Tabellenpräfix – muss eindeutig pro Installation sein
+// Installer-Staging-Datei (Rechte: 666)
+// Wird vom Wizard befüllt und dann in config.local.php umbenannt.
+// Diese Datei NICHT manuell bearbeiten.

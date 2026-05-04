@@ -8,6 +8,7 @@ uploads/*
 
 # Environment
 .env
+# config.local.php enthält Zugangsdaten – niemals einchecken!
 api/config.local.php
 
 # IDE
@@ -37,7 +38,7 @@ composer.lock
 *.zip
 
 # Wizard lock file
-wizard/.lock
+# wizard/.lock wird absichtlich im Repository gehalten (Placeholder mit Inhalt 'inactive')
 
 # Build-Output
 dist/

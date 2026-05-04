@@ -5,6 +5,8 @@ RewriteEngine On
 RewriteCond %{HTTP:Authorization} ^(.*)
 RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
 
+# Startseite: index.php übernimmt die Weiterleitung auf frontend/
+
 # PHP-Settings (falls erlaubt - bei Fehler 500 auskommentieren!)
 <IfModule mod_php.c>
     php_value upload_max_filesize 10M
