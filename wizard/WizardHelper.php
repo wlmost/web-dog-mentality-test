@@ -91,11 +91,11 @@ class WizardHelper
         foreach ($lines as $line) {
             // Kommentarzeilen überspringen
             $trimmed = ltrim($line);
-            if (str_starts_with($trimmed, '--') || str_starts_with($trimmed, '#')) {
+            if (strncmp($trimmed, '--', 2) === 0 || strncmp($trimmed, '#', 1) === 0) {
                 continue;
             }
             $current .= $line . "\n";
-            if (str_ends_with(rtrim($line), ';')) {
+            if (substr(rtrim($line), -1) === ';') {
                 $statements[] = trim($current);
                 $current = '';
             }
@@ -235,7 +235,7 @@ class WizardHelper
     {
         $html = '<ul class="log">';
         foreach ($log as $entry) {
-            $class = str_starts_with($entry, '❌') ? 'error' : 'ok';
+            $class = (strpos($entry, '❌') === 0) ? 'error' : 'ok';
             $html .= '<li class="' . $class . '">' . htmlspecialchars($entry) . '</li>';
         }
         $html .= '</ul>';

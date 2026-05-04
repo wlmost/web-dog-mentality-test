@@ -1,5 +1,14 @@
 Options -Indexes
 
+# PHP-Handler explizit aktivieren (für Shared Hosting)
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Temporär: Fehler anzeigen zur Diagnose
+php_flag display_errors On
+php_value error_reporting -1
+
 <Files ".lock">
     Require all denied
 </Files>

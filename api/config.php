@@ -8,8 +8,8 @@ declare(strict_types=1);
 
 // Error Reporting (nur während Entwicklung aktiviert)
 error_reporting(E_ALL);
-ini_set('display_errors', 0); // Verhindert Ausgabe vor JSON
-ini_set('log_errors', 1);
+ini_set('display_errors', '0'); // Verhindert Ausgabe vor JSON
+ini_set('log_errors', '1');
 
 // CORS Headers für Frontend-Zugriff
 header('Access-Control-Allow-Origin: *');
