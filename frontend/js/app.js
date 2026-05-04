@@ -12,6 +12,7 @@ const state = {
     dogs: [],
     sessions: [],
     batteries: [],
+    sessionFilter: 'all',
     oceanChart: null,
     oceanChartModal: null,
     wizard: {
@@ -325,12 +326,24 @@ async function deleteDog(id, name) {
 
 function viewDogSessions(dogId, dogName) {
     state.currentDog = { id: dogId, name: dogName };
+    state.sessionFilter = 'all';
     switchTab('sessions');
 }
 
 // ===== SESSIONS =====
 async function loadSessions() {
     const dogId = state.currentDog?.id;
+
+    // Subtitle aktualisieren
+    const subtitle = document.getElementById('sessions-subtitle');
+    if (subtitle) {
+        if (state.currentDog) {
+            subtitle.textContent = `Gefiltert nach Hund: ${state.currentDog.name}`;
+            subtitle.classList.remove('d-none');
+        } else {
+            subtitle.classList.add('d-none');
+        }
+    }
 
     // Button ist immer aktiv
     document.getElementById('btn-new-session').disabled = false;
@@ -349,42 +362,109 @@ async function loadSessions() {
 
 function renderSessions(sessions) {
     const container = document.getElementById('sessions-list');
+    const filter = state.sessionFilter || 'all';
+
+    const active = sessions.filter(s => !s.has_ideal_profile);
+    const completed = sessions.filter(s => !!s.has_ideal_profile);
+
+    let filtered;
+    if (filter === 'active') filtered = active;
+    else if (filter === 'completed') filtered = completed;
+    else filtered = sessions;
+
+    const dogBanner = state.currentDog ? `
+        <div class="alert alert-info d-flex justify-content-between align-items-center py-2 mb-3">
+            <span><i class="bi bi-house-heart me-1"></i> Sessions für: <strong>${escapeHtml(state.currentDog.name)}</strong></span>
+            <button class="btn btn-sm btn-outline-secondary" onclick="clearDogFilter()">
+                <i class="bi bi-x-lg"></i> Alle Sessions anzeigen
+            </button>
+        </div>` : '';
+
+    const filterBar = `
+        <div class="btn-group mb-3" role="group" aria-label="Sessions filtern">
+            <button type="button" class="btn btn-sm ${filter === 'all' ? 'btn-secondary' : 'btn-outline-secondary'}" onclick="filterSessions('all')">
+                <i class="bi bi-list"></i> Alle
+                <span class="badge ${filter === 'all' ? 'bg-white text-dark' : 'bg-secondary'} ms-1">${sessions.length}</span>
+            </button>
+            <button type="button" class="btn btn-sm ${filter === 'active' ? 'btn-warning' : 'btn-outline-warning'}" onclick="filterSessions('active')">
+                <i class="bi bi-play-circle"></i> Aktiv
+                <span class="badge ${filter === 'active' ? 'bg-white text-dark' : 'bg-warning text-dark'} ms-1">${active.length}</span>
+            </button>
+            <button type="button" class="btn btn-sm ${filter === 'completed' ? 'btn-success' : 'btn-outline-success'}" onclick="filterSessions('completed')">
+                <i class="bi bi-check-circle"></i> Abgeschlossen
+                <span class="badge ${filter === 'completed' ? 'bg-white text-dark' : 'bg-success'} ms-1">${completed.length}</span>
+            </button>
+        </div>`;
 
     if (sessions.length === 0) {
-        container.innerHTML = `
+        container.innerHTML = dogBanner + filterBar + `
             <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i> Noch keine Sessions vorhanden. Klicken Sie auf "Neue Session" um zu beginnen.
-            </div>
-        `;
+                <i class="bi bi-info-circle"></i> Noch keine Sessions vorhanden. Klicken Sie auf "Neue Session starten" um zu beginnen.
+            </div>`;
         return;
     }
 
-    container.innerHTML = `
-        <div class="list-group">
-            ${sessions.map(session => `
-                <div class="list-group-item list-group-item-action p-0">
-                    <div class="d-flex">
-                        <a href="#" class="flex-grow-1 p-3 text-decoration-none text-dark" onclick="loadSessionDetail(${session.session_id}); return false;">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h5 class="mb-1">${escapeHtml(session.battery_name)}</h5>
-                                <small>${formatDate(session.session_date)}</small>
-                            </div>
-                            <p class="mb-1"><strong>${escapeHtml(session.dog_name)}</strong> (${escapeHtml(session.breed || 'Keine Rasse')})</p>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <small>Tests abgeschlossen: ${session.completed_tests}</small>
-                                ${getSessionStatusBadge(session)}
-                            </div>
-                        </a>
-                        <div class="d-flex align-items-center px-3 border-start">
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteSessionConfirm(${session.session_id}, '${escapeHtml(session.battery_name)}'); event.stopPropagation();" title="Session löschen">
-                                <i class="bi bi-trash"></i>
-                            </button>
+    if (filtered.length === 0) {
+        container.innerHTML = dogBanner + filterBar + `
+            <div class="alert alert-secondary">
+                <i class="bi bi-info-circle"></i> Keine Sessions in dieser Kategorie.
+            </div>`;
+        return;
+    }
+
+    const sessionItems = filtered.map(session => {
+        const statusBadge = getSessionStatusBadge(session);
+        const progressInfo = session.completed_tests > 0
+            ? `<small class="text-muted"><i class="bi bi-check2"></i> ${session.completed_tests} Test${session.completed_tests !== 1 ? 's' : ''} bewertet</small>`
+            : `<small class="text-muted"><i class="bi bi-clock"></i> Noch nicht begonnen</small>`;
+        return `
+            <div class="list-group-item list-group-item-action p-0">
+                <div class="d-flex">
+                    <a href="#" class="flex-grow-1 p-3 text-decoration-none text-dark"
+                       onclick="loadSessionDetail(${session.session_id}); return false;">
+                        <div class="d-flex w-100 justify-content-between align-items-start mb-1">
+                            <h6 class="mb-0 fw-bold">${escapeHtml(session.battery_name)}</h6>
+                            <small class="text-muted ms-2 text-nowrap">${formatDate(session.session_date)}</small>
                         </div>
+                        <p class="mb-1">
+                            <i class="bi bi-house-heart text-secondary"></i>
+                            <strong>${escapeHtml(session.dog_name)}</strong>
+                            ${session.breed ? `<span class="text-muted"> · ${escapeHtml(session.breed)}</span>` : ''}
+                            ${session.owner_name ? `<span class="text-muted"> · ${escapeHtml(session.owner_name)}</span>` : ''}
+                        </p>
+                        <div class="d-flex align-items-center gap-2">
+                            ${statusBadge}
+                            ${progressInfo}
+                        </div>
+                    </a>
+                    <div class="d-flex flex-column justify-content-center gap-2 px-3 border-start">
+                        <button class="btn btn-sm btn-outline-primary"
+                                onclick="loadSessionDetail(${session.session_id}); event.stopPropagation();"
+                                title="Session öffnen">
+                            <i class="bi bi-pencil-square"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger"
+                                onclick="deleteSessionConfirm(${session.session_id}, '${escapeHtml(session.battery_name)}'); event.stopPropagation();"
+                                title="Session löschen">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </div>
                 </div>
-            `).join('')}
-        </div>
-    `;
+            </div>`;
+    }).join('');
+
+    container.innerHTML = dogBanner + filterBar + `<div class="list-group">${sessionItems}</div>`;
+}
+
+function filterSessions(filter) {
+    state.sessionFilter = filter;
+    renderSessions(state.sessions);
+}
+
+function clearDogFilter() {
+    state.currentDog = null;
+    state.sessionFilter = 'all';
+    loadSessions();
 }
 
 async function deleteSessionConfirm(sessionId, batteryName) {
@@ -396,17 +476,16 @@ async function deleteSessionConfirm(sessionId, batteryName) {
     try {
         await api.deleteSession(sessionId);
         showToast('Session erfolgreich gelöscht', 'success');
-        
-        // Session-Liste neu laden
-        if (state.currentDog) {
-            await loadDogSessions(state.currentDog.id);
-        }
-        
+
         // Falls die gelöschte Session gerade angezeigt wurde, Detail-Ansicht ausblenden
         if (state.currentSession && state.currentSession.session_id === sessionId) {
             state.currentSession = null;
             document.getElementById('session-detail').classList.add('d-none');
+            document.getElementById('sessions-list').classList.remove('d-none');
         }
+
+        // Session-Liste neu laden
+        await loadSessions();
     } catch (error) {
         showToast('Fehler beim Löschen der Session: ' + error.message, 'danger');
     } finally {
