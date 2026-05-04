@@ -56,15 +56,29 @@ class WizardHelper
                 continue;
             }
             if (!$conn->query($statement)) {
-                $log[] = '❌ FEHLER: ' . $conn->error . ' | SQL: ' . mb_substr($statement, 0, 100);
+                $log[] = '❌ FEHLER: ' . $conn->error . ' | SQL: ' . self::safeSubstr($statement, 0, 100);
                 return ['success' => false, 'log' => $log];
             }
             // Erste Zeile des Statements als Log-Eintrag
             $firstLine = trim(strtok($statement, "\n"));
-            $log[] = '✅ ' . mb_substr($firstLine, 0, 80);
+            $log[] = '✅ ' . self::safeSubstr($firstLine, 0, 80);
         }
 
         return ['success' => true, 'log' => $log];
+    }
+
+    /**
+     * Kürzt einen String sicher auf $length Zeichen.
+     * Nutzt mb_substr (UTF-8-korrekt) wenn die mbstring-Extension verfügbar ist,
+     * andernfalls substr() als Fallback (byte-basiert; Multibyte-Zeichen an der
+     * Grenzposition können dadurch abgeschnitten werden).
+     */
+    private static function safeSubstr(string $str, int $start, int $length): string
+    {
+        if (function_exists('mb_substr')) {
+            return mb_substr($str, $start, $length, 'UTF-8');
+        }
+        return substr($str, $start, $length);
     }
 
     /** Spaltet SQL-Text in einzelne Statements auf (delimiter-aware) */
