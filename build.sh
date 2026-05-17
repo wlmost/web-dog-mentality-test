@@ -98,8 +98,9 @@ ok "frontend/ (ohne Test-Seiten)"
 # Wizard
 # ---------------------------------------------------------------------------
 cp -r wizard "$DIST/wizard"
-# Lock-Datei niemals deployen
-rm -f "$DIST/wizard/.lock"
+# Lock-Datei mit Placeholder-Inhalt deployen (muss existieren, damit der Wizard
+# nach erfolgreicher Installation gesperrt werden kann)
+echo -n 'inactive' > "$DIST/wizard/.lock"
 ok "wizard/"
 
 # ---------------------------------------------------------------------------

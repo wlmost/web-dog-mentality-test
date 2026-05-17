@@ -162,21 +162,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db     = $_SESSION['install_db']    ?? [];
         $prefix = $_SESSION['install_prefix'] ?? '';
 
+        // Schritt A: Konfiguration schreiben
         try {
             WizardHelper::writeConfig($db['host'], $db['user'], $db['pass'], $db['name'], $prefix, (int)($db['port'] ?? 3306), $db['origin'] ?? '*');
-            WizardHelper::lock();
-
-            // Session bereinigen
-            unset($_SESSION['install_step'], $_SESSION['install_db'], $_SESSION['install_prefix'], $_SESSION['install_log'], $_SESSION['install_config']);
-
-            echo renderPage('Installation abgeschlossen', renderFinished());
-            exit();
         } catch (RuntimeException $e) {
             // Keine Schreibrechte – Config-Inhalt für manuelle Übertragung per FTP bereitstellen
             $configContent = WizardHelper::generateConfigContent($db['host'], $db['user'], $db['pass'], $db['name'], $prefix, (int)($db['port'] ?? 3306), $db['origin'] ?? '*');
             $_SESSION['install_config'] = $configContent;
-            $step = 5;
+            $step  = 5;
             $error = 'Die Datei <code>api/config.local.php</code> konnte nicht automatisch geschrieben werden (keine Schreibrechte). Bitte legen Sie die Datei manuell per FTP an.';
+        }
+
+        // Schritt B: Wizard sperren (nur wenn Config erfolgreich geschrieben)
+        if ($error === '') {
+            try {
+                WizardHelper::lock();
+
+                // Session bereinigen
+                unset($_SESSION['install_step'], $_SESSION['install_db'], $_SESSION['install_prefix'], $_SESSION['install_log'], $_SESSION['install_config']);
+
+                echo renderPage('Installation abgeschlossen', renderFinished());
+                exit();
+            } catch (RuntimeException $e) {
+                $step  = 5;
+                $error = $e->getMessage();
+            }
         }
     }
 

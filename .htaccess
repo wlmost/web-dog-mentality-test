@@ -1,8 +1,12 @@
 DirectoryIndex index.php
 
 # Authorization Header an PHP weitergeben (wird von Apache sonst blockiert)
+# Options +FollowSymLinks ist auf vielen Shared-Hosting-Servern Voraussetzung
+# für RewriteEngine On (verhindert 403-Fehler)
 <IfModule mod_rewrite.c>
+    Options +FollowSymLinks
     RewriteEngine On
+    RewriteBase /
     RewriteCond %{HTTP:Authorization} ^(.+)$
-    RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+    RewriteRule .* - [e=HTTP_AUTHORIZATION:%1,L]
 </IfModule>
