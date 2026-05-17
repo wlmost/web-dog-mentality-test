@@ -11,18 +11,6 @@ error_reporting(E_ALL);
 ini_set('display_errors', '0'); // Verhindert Ausgabe vor JSON
 ini_set('log_errors', '1');
 
-// CORS Headers für Frontend-Zugriff
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-header('Content-Type: application/json; charset=utf-8');
-
-// OPTIONS-Request für Preflight
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
-
 // .env Datei laden
 function loadEnv($path = __DIR__ . '/../.env') {
     if (!file_exists($path)) {
@@ -63,12 +51,28 @@ if (file_exists(__DIR__ . '/config.local.php')) {
 }
 
 // Datenbank-Konfiguration
-if (!defined('DB_HOST'))    define('DB_HOST',    getenv('DB_HOST')    ?: 'localhost');
-if (!defined('DB_USER'))    define('DB_USER',    getenv('DB_USER')    ?: 'root');
-if (!defined('DB_PASS'))    define('DB_PASS',    getenv('DB_PASS')    ?: '');
-if (!defined('DB_NAME'))    define('DB_NAME',    getenv('DB_NAME')    ?: 'dog_mentality');
-if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
-if (!defined('DB_PREFIX'))  define('DB_PREFIX',  getenv('DB_PREFIX')  ?: '');
+if (!defined('DB_HOST'))      define('DB_HOST',      getenv('DB_HOST')        ?: 'localhost');
+if (!defined('DB_PORT'))      define('DB_PORT',      (int)(getenv('DB_PORT')  ?: 3306));
+if (!defined('DB_USER'))      define('DB_USER',      getenv('DB_USER')        ?: 'root');
+if (!defined('DB_PASS'))      define('DB_PASS',      getenv('DB_PASS')        ?: '');
+if (!defined('DB_NAME'))      define('DB_NAME',      getenv('DB_NAME')        ?: 'dog_mentality');
+if (!defined('DB_CHARSET'))   define('DB_CHARSET',   'utf8mb4');
+if (!defined('DB_PREFIX'))    define('DB_PREFIX',    getenv('DB_PREFIX')      ?: '');
+if (!defined('CORS_ORIGIN'))  define('CORS_ORIGIN',  getenv('CORS_ORIGIN')    ?: '*');
+
+// CORS Headers für Frontend-Zugriff
+// CORS_ORIGIN wird per config.local.php gesetzt (Wizard-Schritt 1).
+// Für Produktion auf die konkrete Frontend-URL einschränken, nicht '*' verwenden.
+header('Access-Control-Allow-Origin: ' . CORS_ORIGIN);
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Content-Type: application/json; charset=utf-8');
+
+// OPTIONS-Request für Preflight
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 // OpenAI Konfiguration
 define('OPENAI_API_KEY', getenv('OPENAI_API_KEY') ?: '');
@@ -82,7 +86,7 @@ function getDbConnection() {
     
     if ($conn === null) {
         try {
-            $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+            $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
             
             if ($conn->connect_error) {
                 throw new Exception("Verbindungsfehler: " . $conn->connect_error);

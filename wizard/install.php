@@ -31,11 +31,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = trim($_POST['db_user'] ?? '');
         $pass = $_POST['db_pass'] ?? '';
         $name = trim($_POST['db_name'] ?? '');
+        $port   = (int)($_POST['db_port'] ?? 3306);
+        if ($port < 1 || $port > 65535) {
+            $port = 3306;
+        }
+        $origin = trim($_POST['app_origin'] ?? '*');
+        if ($origin === '') {
+            $origin = '*';
+        }
 
         try {
-            $conn = WizardHelper::testConnection($host, $user, $pass, $name);
+            $conn = WizardHelper::testConnection($host, $user, $pass, $name, $port);
             $conn->close();
-            $_SESSION['install_db'] = compact('host', 'user', 'pass', 'name');
+            $_SESSION['install_db'] = compact('host', 'user', 'pass', 'name', 'port', 'origin');
             $step = 2;
             $_SESSION['install_step'] = $step;
         } catch (RuntimeException $e) {
@@ -63,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $prefix = $_SESSION['install_prefix'] ?? '';
 
         try {
-            $conn = WizardHelper::testConnection($db['host'], $db['user'], $db['pass'], $db['name']);
+            $conn = WizardHelper::testConnection($db['host'], $db['user'], $db['pass'], $db['name'], (int)($db['port'] ?? 3306));
             $log  = [];
 
             // Bestehende Tabellen / Views mit diesem Präfix löschen
@@ -126,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             WizardHelper::validatePassword($adminPass);
 
-            $conn = WizardHelper::testConnection($db['host'], $db['user'], $db['pass'], $db['name']);
+            $conn = WizardHelper::testConnection($db['host'], $db['user'], $db['pass'], $db['name'], (int)($db['port'] ?? 3306));
             $hash = password_hash($adminPass, PASSWORD_BCRYPT);
             $table = $prefix . 'auth_users';
             $stmt = $conn->prepare(
@@ -155,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $prefix = $_SESSION['install_prefix'] ?? '';
 
         try {
-            WizardHelper::writeConfig($db['host'], $db['user'], $db['pass'], $db['name'], $prefix);
+            WizardHelper::writeConfig($db['host'], $db['user'], $db['pass'], $db['name'], $prefix, (int)($db['port'] ?? 3306), $db['origin'] ?? '*');
             WizardHelper::lock();
 
             // Session bereinigen
@@ -165,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         } catch (RuntimeException $e) {
             // Keine Schreibrechte – Config-Inhalt für manuelle Übertragung per FTP bereitstellen
-            $configContent = WizardHelper::generateConfigContent($db['host'], $db['user'], $db['pass'], $db['name'], $prefix);
+            $configContent = WizardHelper::generateConfigContent($db['host'], $db['user'], $db['pass'], $db['name'], $prefix, (int)($db['port'] ?? 3306), $db['origin'] ?? '*');
             $_SESSION['install_config'] = $configContent;
             $step = 5;
             $error = 'Die Datei <code>api/config.local.php</code> konnte nicht automatisch geschrieben werden (keine Schreibrechte). Bitte legen Sie die Datei manuell per FTP an.';
@@ -226,6 +234,16 @@ function renderStep(int $step, string $error, array $db, string $prefix, array $
                 <div class="form-group">
                     <label>Datenbank-Host</label>
                     <input type="text" name="db_host" value="localhost" required>
+                </div>
+                <div class="form-group">
+                    <label>Datenbank-Port</label>
+                    <input type="number" name="db_port" value="3306" min="1" max="65535" required>
+                    <small>Standard: 3306. Nur ändern, wenn MySQL auf einem anderen Port läuft.</small>
+                </div>
+                <div class="form-group">
+                    <label>Erlaubte Frontend-Origin (CORS)</label>
+                    <input type="text" name="app_origin" value="*" placeholder="https://meine-domain.de">
+                    <small>URL des Frontends, z.B. <code>https://meine-domain.de</code>. <code>*</code> erlaubt alle Origins (nur für Entwicklung geeignet).</small>
                 </div>
                 <div class="form-group">
                     <label>Datenbankname</label>

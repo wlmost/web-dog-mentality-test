@@ -1,14 +1,39 @@
 Options -Indexes
 
-# PHP-Handler explizit aktivieren (für Shared Hosting)
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
+# PHP-Handler explizit aktivieren (für Shared Hosting mit mod_php)
+# Wird hinter einem nginx-Proxy mit PHP-FPM ignoriert – kein Fehler
+<IfModule mod_php.c>
+    <FilesMatch "\.php$">
+        SetHandler application/x-httpd-php
+    </FilesMatch>
+</IfModule>
+<IfModule mod_php8.c>
+    <FilesMatch "\.php$">
+        SetHandler application/x-httpd-php
+    </FilesMatch>
+</IfModule>
 
-# Temporär: Fehler anzeigen zur Diagnose
-php_flag display_errors On
-php_value error_reporting -1
+# Fehlerausgabe – nur mit mod_php wirksam.
+# SICHERHEIT: display_errors bleibt Off; PHP-Fehler dürfen keine DB-Pfade/Credentials
+# nach außen geben. Zum Debuggen lokal auf On setzen, NIEMALS auf dem Produktivserver.
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_value error_reporting -1
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag display_errors Off
+    php_value error_reporting -1
+</IfModule>
 
+# HTTPS-Erkennung hinter nginx-Reverse-Proxy.
+# SICHERHEIT: Dieser Header darf nur von einem vertrauenswürdigen Proxy gesetzt werden.
+# Stelle sicher, dass X-Forwarded-Proto am äußersten Proxy gestripped/überschrieben
+# wird, damit Clients den Wert nicht selbst setzen können.
+<IfModule mod_setenvif.c>
+    SetEnvIf X-Forwarded-Proto "https" HTTPS=on
+</IfModule>
+
+# Zugriff auf Lock-Datei verweigern
 <Files ".lock">
     Require all denied
 </Files>

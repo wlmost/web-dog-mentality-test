@@ -41,9 +41,9 @@ class WizardHelper
     }
 
     /** Testet DB-Verbindung und gibt mysqli-Objekt oder Exception zurück */
-    public static function testConnection(string $host, string $user, string $pass, string $name): mysqli
+    public static function testConnection(string $host, string $user, string $pass, string $name, int $port = 3306): mysqli
     {
-        $conn = new mysqli($host, $user, $pass, $name);
+        $conn = new mysqli($host, $user, $pass, $name, $port);
         if ($conn->connect_error) {
             throw new RuntimeException('Verbindungsfehler: ' . $conn->connect_error);
         }
@@ -73,9 +73,9 @@ class WizardHelper
         );
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                $view = $row['TABLE_NAME'];
+                $view = str_replace('`', '``', $row['TABLE_NAME']);
                 $conn->query("DROP VIEW IF EXISTS `$view`");
-                $log[] = "✅ View gelöscht: $view";
+                $log[] = '✅ View gelöscht: ' . $row['TABLE_NAME'];
             }
         }
 
@@ -88,9 +88,9 @@ class WizardHelper
         );
         if ($result) {
             while ($row = $result->fetch_assoc()) {
-                $table = $row['TABLE_NAME'];
+                $table = str_replace('`', '``', $row['TABLE_NAME']);
                 $conn->query("DROP TABLE IF EXISTS `$table`");
-                $log[] = "✅ Tabelle gelöscht: $table";
+                $log[] = '✅ Tabelle gelöscht: ' . $row['TABLE_NAME'];
             }
         }
 
@@ -179,30 +179,26 @@ class WizardHelper
     }
 
     /** Erzeugt den Inhalt der config.local.php als String */
-    public static function generateConfigContent(string $host, string $user, string $pass, string $name, string $prefix): string
+    public static function generateConfigContent(string $host, string $user, string $pass, string $name, string $prefix, int $port = 3306, string $origin = '*'): string
     {
-        $host   = addslashes($host);
-        $user   = addslashes($user);
-        $pass   = addslashes($pass);
-        $name   = addslashes($name);
-        $prefix = addslashes($prefix);
-
         return "<?php\n"
             . "declare(strict_types=1);\n"
             . "// Automatisch generiert vom Installations-Wizard – " . date('Y-m-d H:i:s') . "\n"
             . "// Diese Datei nicht ins Repository einchecken!\n\n"
-            . "define('DB_HOST',   '$host');\n"
-            . "define('DB_USER',   '$user');\n"
-            . "define('DB_PASS',   '$pass');\n"
-            . "define('DB_NAME',   '$name');\n"
-            . "define('DB_PREFIX', '$prefix');\n";
+            . "define('DB_HOST',     " . var_export($host,   true) . ");\n"
+            . "define('DB_PORT',     $port);\n"
+            . "define('DB_USER',     " . var_export($user,   true) . ");\n"
+            . "define('DB_PASS',     " . var_export($pass,   true) . ");\n"
+            . "define('DB_NAME',     " . var_export($name,   true) . ");\n"
+            . "define('DB_PREFIX',   " . var_export($prefix, true) . ");\n"
+            . "define('CORS_ORIGIN', " . var_export($origin, true) . ");\n";
     }
 
     /**
      * Schreibt Konfiguration in api/config.local.php.example (muss 666 haben),
      * benennt sie dann in config.local.php um und setzt Rechte auf 600.
      */
-    public static function writeConfig(string $host, string $user, string $pass, string $name, string $prefix): void
+    public static function writeConfig(string $host, string $user, string $pass, string $name, string $prefix, int $port = 3306, string $origin = '*'): void
     {
         $examplePath = __DIR__ . '/../api/config.local.php.example';
         $targetPath  = __DIR__ . '/../api/config.local.php';
@@ -214,7 +210,7 @@ class WizardHelper
             );
         }
 
-        $content = self::generateConfigContent($host, $user, $pass, $name, $prefix);
+        $content = self::generateConfigContent($host, $user, $pass, $name, $prefix, $port, $origin);
 
         // Schritt 1: Daten in die beschreibbare .example-Datei schreiben
         if (file_put_contents($examplePath, $content) === false) {

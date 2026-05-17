@@ -30,7 +30,7 @@ $log     = [];
 // Verfügbare und angewendete Migrationen ermitteln
 $conn = null;
 try {
-    $conn = WizardHelper::testConnection(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+    $conn = WizardHelper::testConnection(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
 } catch (RuntimeException $e) {
     echo renderUpdatePage('Update-Fehler', '<div class="alert error">' . htmlspecialchars($e->getMessage()) . '</div>');
     exit();

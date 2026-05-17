@@ -1,1 +1,8 @@
 DirectoryIndex index.php
+
+# Authorization Header an PHP weitergeben (wird von Apache sonst blockiert)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP:Authorization} ^(.+)$
+    RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+</IfModule>
