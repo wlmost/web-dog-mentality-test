@@ -4,7 +4,7 @@ DirectoryIndex index.php
 # Options +FollowSymLinks ist auf vielen Shared-Hosting-Servern Voraussetzung
 # für RewriteEngine On (verhindert 403-Fehler)
 <IfModule mod_rewrite.c>
-    Options +FollowSymLinks
+    Options +SymLinksIfOwnerMatch
     RewriteEngine On
     RewriteBase /
     RewriteCond %{HTTP:Authorization} ^(.+)$

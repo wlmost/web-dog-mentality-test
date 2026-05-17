@@ -1,5 +1,3 @@
-Options -Indexes
-
 # PHP-Handler explizit aktivieren (für Shared Hosting mit mod_php)
 # Wird hinter einem nginx-Proxy mit PHP-FPM ignoriert – kein Fehler
 <IfModule mod_php.c>
@@ -33,7 +31,13 @@ Options -Indexes
     SetEnvIf X-Forwarded-Proto "https" HTTPS=on
 </IfModule>
 
-# Zugriff auf Lock-Datei verweigern
+# Zugriff auf Lock-Datei verweigern (kompatibel mit mod_authz_core und mod_authz_host)
 <Files ".lock">
-    Require all denied
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
 </Files>
