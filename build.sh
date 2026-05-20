@@ -130,9 +130,10 @@ ok "database/ (Schemas + Migrations)"
 # Root-Dateien
 # ---------------------------------------------------------------------------
 [[ -f ".htaccess"    ]] && cp ".htaccess"    "$DIST/.htaccess"
+[[ -f "index.php"   ]] && cp "index.php"    "$DIST/index.php"
 [[ -f "php.ini.example" ]] && cp "php.ini.example" "$DIST/php.ini.example"
 cp "composer.json" "$DIST/composer.json"
-ok ".htaccess, php.ini.example, composer.json"
+ok ".htaccess, index.php, php.ini.example, composer.json"
 
 # ---------------------------------------------------------------------------
 # vendor/ kopieren (nach composer install)
