@@ -32,14 +32,12 @@ function getUserFromSession($conn, $token) {
 $method = $_SERVER['REQUEST_METHOD'];
 $conn = getDbConnection();
 
-// Authentifizierung
+// Authentifizierung — ausschließlich via Authorization-Header
 $authHeader = '';
 if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
     $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
 } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
     $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
-} elseif (isset($_GET['token'])) {
-    $authHeader = 'Bearer ' . $_GET['token'];
 }
 
 $currentUser = null;

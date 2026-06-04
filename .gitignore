@@ -42,3 +42,6 @@ composer.lock
 
 # Build-Output
 dist/
+
+# 
+Testbatterie*

@@ -58,12 +58,18 @@ if (!defined('DB_PASS'))      define('DB_PASS',      getenv('DB_PASS')        ?:
 if (!defined('DB_NAME'))      define('DB_NAME',      getenv('DB_NAME')        ?: 'dog_mentality');
 if (!defined('DB_CHARSET'))   define('DB_CHARSET',   'utf8mb4');
 if (!defined('DB_PREFIX'))    define('DB_PREFIX',    getenv('DB_PREFIX')      ?: '');
-if (!defined('CORS_ORIGIN'))  define('CORS_ORIGIN',  getenv('CORS_ORIGIN')    ?: '*');
+// CORS_ORIGIN darf KEIN Default haben — ein leerer Wert bedeutet: kein CORS-Header
+// (= Same-Origin-Policy des Browsers greift, was auf Shared Hosting der Normalfall ist).
+// Nur setzen wenn Frontend und API auf unterschiedlichen Origins laufen.
+if (!defined('CORS_ORIGIN')) define('CORS_ORIGIN', getenv('CORS_ORIGIN') ?: '');
 
 // CORS Headers für Frontend-Zugriff
 // CORS_ORIGIN wird per config.local.php gesetzt (Wizard-Schritt 1).
-// Für Produktion auf die konkrete Frontend-URL einschränken, nicht '*' verwenden.
-header('Access-Control-Allow-Origin: ' . CORS_ORIGIN);
+// Nur ausgeben wenn explizit konfiguriert — niemals '*' als Default verwenden.
+if (CORS_ORIGIN !== '') {
+    header('Access-Control-Allow-Origin: ' . CORS_ORIGIN);
+    header('Vary: Origin');
+}
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Content-Type: application/json; charset=utf-8');

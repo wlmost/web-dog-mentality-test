@@ -42,22 +42,13 @@ try {
     
     // Session-Token aus Header holen (verschiedene Quellen probieren)
     $authHeader = '';
-    
-    // Versuch 1: Standard HTTP_AUTHORIZATION
+
+    // Token ausschließlich via Authorization-Header — niemals als Query- oder POST-Parameter
+    // (Token in URLs landen in Server-Logs, Browser-History und Referrer-Headern)
     if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
         $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
-    }
-    // Versuch 2: Apache mod_rewrite
-    elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+    } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
         $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
-    }
-    // Versuch 3: Als Query-Parameter (Fallback)
-    elseif (isset($_GET['token'])) {
-        $authHeader = 'Bearer ' . $_GET['token'];
-    }
-    // Versuch 4: Als POST-Parameter
-    elseif (isset($_POST['token'])) {
-        $authHeader = 'Bearer ' . $_POST['token'];
     }
     
     if (empty($authHeader)) {

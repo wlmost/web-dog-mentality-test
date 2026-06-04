@@ -68,6 +68,14 @@ try {
                 case 'change_password':
                     echo json_encode(changePassword($conn, $input));
                     break;
+
+                case 'request_password_reset':
+                    echo json_encode(requestPasswordReset($conn, $input));
+                    break;
+
+                case 'reset_password':
+                    echo json_encode(resetPassword($conn, $input));
+                    break;
                     
                 default:
                     throw new Exception('Unknown action');
@@ -607,14 +615,151 @@ function base32Decode($secret) {
     return $decoded;
 }
 
-function logAuthEvent($conn, $username, $action, $note = null) {
-    $ip = $_SERVER['REMOTE_ADDR'] ?? null;
-    $ua = $_SERVER['HTTP_USER_AGENT'] ?? null;
-    
+// ===================================================================
+// Passwort-Reset anfordern
+// ===================================================================
+function requestPasswordReset($conn, $input) {
+    $email = trim($input['email'] ?? '');
+
+    if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        throw new Exception('Gültige E-Mail-Adresse erforderlich');
+    }
+
+    // Generische Antwort — verhindert User-Enumeration via E-Mail
+    $genericResponse = [
+        'success' => true,
+        'message' => 'Falls ein Konto mit dieser E-Mail-Adresse existiert, wurde ein Reset-Link gesendet.'
+    ];
+
+    // Rate-Limit: max. 3 Anfragen pro Stunde pro E-Mail
     $stmt = $conn->prepare("
-        INSERT INTO " . tbl('auth_logs') . " (username, action, ip_address, user_agent)
-        VALUES (?, ?, ?, ?)
+        SELECT COUNT(*) AS cnt
+        FROM " . tbl('auth_password_resets') . " pr
+        JOIN " . tbl('auth_users') . " u ON u.id = pr.user_id
+        WHERE u.email = ? AND pr.created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
     ");
-    $stmt->bind_param('ssss', $username, $action, $ip, $ua);
+    $stmt->bind_param('s', $email);
     $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    if ($row['cnt'] >= 3) {
+        return $genericResponse; // Stille Ablehnung
+    }
+
+    // User anhand E-Mail suchen
+    $stmt = $conn->prepare("
+        SELECT id, username FROM " . tbl('auth_users') . "
+        WHERE email = ? AND is_active = TRUE
+    ");
+    $stmt->bind_param('s', $email);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+
+    if (!$user) {
+        return $genericResponse; // Kein Hinweis ob E-Mail existiert
+    }
+
+    // Alten Token löschen (UNIQUE KEY auf user_id erlaubt nur einen aktiven Reset)
+    $stmt = $conn->prepare("DELETE FROM " . tbl('auth_password_resets') . " WHERE user_id = ?");
+    $stmt->bind_param('i', $user['id']);
+    $stmt->execute();
+
+    // Sicheren Token generieren — nur Hash wird in der DB gespeichert
+    $rawToken  = bin2hex(random_bytes(32)); // 64 Zeichen, 256 Bit Entropie
+    $tokenHash = hash('sha256', $rawToken);
+    $expiresAt = date('Y-m-d H:i:s', time() + 3600); // 1 Stunde
+
+    $stmt = $conn->prepare("
+        INSERT INTO " . tbl('auth_password_resets') . " (user_id, token_hash, expires_at)
+        VALUES (?, ?, ?)
+    ");
+    $stmt->bind_param('iss', $user['id'], $tokenHash, $expiresAt);
+    $stmt->execute();
+
+    // Reset-Link zusammenbauen
+    $appUrl   = defined('APP_URL') ? rtrim(APP_URL, '/') : '';
+    $resetUrl = $appUrl . '/frontend/login.html?reset_token=' . urlencode($rawToken);
+
+    // E-Mail senden via PHP mail() — funktioniert auf allen Shared-Hosting-Servern
+    $from    = defined('MAIL_FROM') ? MAIL_FROM : 'noreply@' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    $subject = '=?UTF-8?B?' . base64_encode('Passwort zurücksetzen – Dog Mentality Test') . '?=';
+    $body    = "Hallo {$user['username']},\r\n\r\n"
+             . "Du hast ein Zurücksetzen deines Passworts angefordert.\r\n\r\n"
+             . "Klicke auf folgenden Link (gültig 1 Stunde):\r\n"
+             . $resetUrl . "\r\n\r\n"
+             . "Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.\r\n\r\n"
+             . "Dog Mentality Test";
+    $headers = implode("\r\n", [
+        'From: ' . $from,
+        'Content-Type: text/plain; charset=UTF-8',
+        'X-Mailer: PHP/' . PHP_VERSION
+    ]);
+
+    $sent = mail($email, $subject, $body, $headers);
+    logAuthEvent($conn, $user['username'], 'password_reset_requested', $sent ? 'mail_sent' : 'mail_failed');
+
+    return $genericResponse;
 }
+
+// ===================================================================
+// Passwort zurücksetzen (Token einlösen)
+// ===================================================================
+function resetPassword($conn, $input) {
+    $rawToken    = $input['token'] ?? '';
+    $newPassword = $input['new_password'] ?? '';
+
+    if (empty($rawToken)) {
+        throw new Exception('Token erforderlich');
+    }
+    if (strlen($newPassword) < 8) {
+        throw new Exception('Passwort muss mindestens 8 Zeichen lang sein');
+    }
+
+    $tokenHash = hash('sha256', $rawToken);
+
+    // Token in DB suchen — nicht abgelaufen, User aktiv
+    $stmt = $conn->prepare("
+        SELECT pr.user_id, u.username
+        FROM " . tbl('auth_password_resets') . " pr
+        JOIN " . tbl('auth_users') . " u ON u.id = pr.user_id
+        WHERE pr.token_hash = ? AND pr.expires_at > NOW() AND u.is_active = TRUE
+    ");
+    $stmt->bind_param('s', $tokenHash);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+
+    if (!$row) {
+        throw new Exception('Ungültiger oder abgelaufener Reset-Link');
+    }
+
+    $userId   = $row['user_id'];
+    $username = $row['username'];
+
+    // Neues Passwort setzen; gleichzeitig Lockout aufheben
+    $hash = password_hash($newPassword, PASSWORD_BCRYPT);
+    $stmt = $conn->prepare("
+        UPDATE " . tbl('auth_users') . "
+        SET password_hash = ?, failed_attempts = 0, locked_until = NULL
+        WHERE id = ?
+    ");
+    $stmt->bind_param('si', $hash, $userId);
+    $stmt->execute();
+
+    // Token löschen (Einmalverwendung)
+    $stmt = $conn->prepare("DELETE FROM " . tbl('auth_password_resets') . " WHERE user_id = ?");
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+
+    // Alle aktiven Sessions invalidieren — frisches Login erzwingen
+    $stmt = $conn->prepare("DELETE FROM " . tbl('auth_sessions') . " WHERE user_id = ?");
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+
+    logAuthEvent($conn, $username, 'password_reset_success');
+
+    return [
+        'success' => true,
+        'message' => 'Passwort erfolgreich geändert. Bitte neu einloggen.'
+    ];
+}
+
+function logAuthEvent($conn, $username, $action, $note = null) {

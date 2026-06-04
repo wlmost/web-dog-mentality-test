@@ -80,6 +80,24 @@ class AuthAPI {
         
         return await this.parseResponse(response);
     }
+
+    async requestPasswordReset(email) {
+        const response = await fetch(this.baseUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'request_password_reset', email })
+        });
+        return await this.parseResponse(response);
+    }
+
+    async resetPassword(token, newPassword) {
+        const response = await fetch(this.baseUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'reset_password', token, new_password: newPassword })
+        });
+        return await this.parseResponse(response);
+    }
     
     saveSession(token) {
         this.sessionToken = token;
@@ -353,3 +371,83 @@ function showAlert(elementId, message, type = 'info') {
         </div>
     `;
 }
+
+// ===================================================================
+// Passwort vergessen — Formularwechsel
+// ===================================================================
+document.getElementById('forgotPasswordLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('forgotPasswordForm').style.display = 'block';
+    setTimeout(() => document.getElementById('resetEmail')?.focus(), 100);
+});
+
+document.getElementById('backToLogin')?.addEventListener('click', () => {
+    document.getElementById('forgotPasswordForm').style.display = 'none';
+    document.getElementById('loginForm').style.display = 'block';
+});
+
+// ===================================================================
+// Passwort-Reset-Anfrage absenden
+// ===================================================================
+document.getElementById('forgotPasswordFormElement')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('resetEmail').value.trim();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Senden…';
+
+    try {
+        const result = await auth.requestPasswordReset(email);
+        showAlert('forgotAlert', result.message || 'Reset-Link wurde gesendet.', 'success');
+        e.target.reset();
+    } catch (error) {
+        showAlert('forgotAlert', 'Fehler: ' + error.message, 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-envelope"></i> Reset-Link senden';
+    }
+});
+
+// ===================================================================
+// Neues Passwort setzen (URL-Parameter ?reset_token=...)
+// ===================================================================
+(function checkResetToken() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('reset_token');
+    if (!token) return;
+
+    // Login-Formular ausblenden, Reset-Formular einblenden
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('resetPasswordForm').style.display = 'block';
+
+    document.getElementById('resetPasswordFormElement')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const newPassword = document.getElementById('newPassword').value;
+        const confirm    = document.getElementById('newPasswordConfirm').value;
+
+        if (newPassword !== confirm) {
+            showAlert('resetAlert', 'Passwörter stimmen nicht überein.', 'warning');
+            return;
+        }
+
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Speichern…';
+
+        try {
+            const result = await auth.resetPassword(token, newPassword);
+            showAlert('resetAlert', result.message || 'Passwort gespeichert.', 'success');
+            // URL-Parameter entfernen und nach 2 s zum Login
+            history.replaceState(null, '', window.location.pathname);
+            setTimeout(() => {
+                document.getElementById('resetPasswordForm').style.display = 'none';
+                document.getElementById('loginForm').style.display = 'block';
+            }, 2000);
+        } catch (error) {
+            showAlert('resetAlert', 'Fehler: ' + error.message, 'danger');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> Passwort speichern';
+        }
+    });
+})();

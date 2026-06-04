@@ -42,15 +42,13 @@ try {
     
     // Session-Token aus Header holen
     $authHeader = '';
-    
+
+    // Token ausschließlich via Authorization-Header — niemals als Query- oder POST-Parameter
+    // (Token in URLs landen in Server-Logs, Browser-History und Referrer-Headern)
     if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
         $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
     } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
         $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
-    } elseif (isset($_GET['token'])) {
-        $authHeader = 'Bearer ' . $_GET['token'];
-    } elseif (isset($_POST['token'])) {
-        $authHeader = 'Bearer ' . $_POST['token'];
     }
     
     if (empty($authHeader)) {
@@ -269,21 +267,32 @@ function uploadAvatar($conn, $currentUser) {
     }
     
     $file = $_FILES['avatar'];
-    
+
     // Validierung
-    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     $maxSize = 5 * 1024 * 1024; // 5 MB
-    
-    if (!in_array($file['type'], $allowedTypes)) {
-        throw new Exception('Invalid file type. Only JPG, PNG, GIF, and WebP allowed');
-    }
-    
+
     if ($file['size'] > $maxSize) {
         throw new Exception('File too large. Maximum 5 MB allowed');
     }
-    
-    // Dateiname generieren
-    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+
+    // MIME-Type via Magic Bytes prüfen (nicht $_FILES['type'] — der ist client-seitig fälschbar)
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $detectedMime = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    $allowedMimes = [
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/gif'  => 'gif',
+        'image/webp' => 'webp',
+    ];
+
+    if (!array_key_exists($detectedMime, $allowedMimes)) {
+        throw new Exception('Invalid file type. Only JPG, PNG, GIF, and WebP allowed');
+    }
+
+    // Extension aus geprüftem MIME-Type ableiten — niemals vom Client-Dateinamen
+    $extension = $allowedMimes[$detectedMime];
     $filename = 'avatar_' . $currentUser['id'] . '_' . time() . '.' . $extension;
     
     // Upload-Verzeichnis erstellen falls nötig

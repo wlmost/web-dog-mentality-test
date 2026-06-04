@@ -1,4 +1,63 @@
 <?php
-// Installer-Staging-Datei (Rechte: 666)
-// Wird vom Wizard befüllt und dann in config.local.php umbenannt.
-// Diese Datei NICHT manuell bearbeiten.
+/**
+ * Lokale Konfiguration (installationsspezifisch)
+ *
+ * Kopiere diese Datei nach config.local.php und passe die Werte an.
+ * config.local.php wird NICHT ins Repository eingecheckt (.gitignore).
+ *
+ * Alternativ: Alle Werte können als Umgebungsvariablen in einer .env-Datei
+ * im Projekt-Root gesetzt werden — config.local.php hat dabei Vorrang.
+ */
+
+// -----------------------------------------------------------------------
+// Datenbank (ERFORDERLICH)
+// -----------------------------------------------------------------------
+define('DB_HOST', 'localhost');       // Hostname des MySQL-Servers
+define('DB_PORT', 3306);              // Standard-MySQL-Port
+define('DB_USER', 'db_benutzername'); // Datenbankbenutzer
+define('DB_PASS', 'sicheres_passwort');
+define('DB_NAME', 'dog_mentality');   // Datenbankname
+define('DB_PREFIX', '');              // Tabellenpräfix, z. B. 'dmt_' (leer = kein Präfix)
+
+// -----------------------------------------------------------------------
+// Anwendungs-URL (ERFORDERLICH für Passwort-Reset-E-Mails)
+// Vollständige URL ohne abschließenden Slash.
+// Beispiel: define('APP_URL', 'https://www.meine-domain.de');
+// -----------------------------------------------------------------------
+define('APP_URL', 'https://www.meine-domain.de');
+
+// -----------------------------------------------------------------------
+// E-Mail-Absender für Passwort-Reset
+// Standard: noreply@<HTTP_HOST> — auf Shared Hosting oft ausreichend.
+// -----------------------------------------------------------------------
+define('MAIL_FROM', 'noreply@meine-domain.de');
+
+// -----------------------------------------------------------------------
+// CORS — nur setzen wenn Frontend und API auf unterschiedlichen Origins laufen
+// Auf Shared Hosting mit gleicher Domain leer lassen (Same-Origin greift automatisch).
+// Beispiel: define('CORS_ORIGIN', 'https://www.meine-domain.de');
+// -----------------------------------------------------------------------
+define('CORS_ORIGIN', '');
+
+// -----------------------------------------------------------------------
+// OpenAI (optional — nur für KI-Profil-Features erforderlich)
+// API-Key unter https://platform.openai.com/api-keys erstellen.
+// -----------------------------------------------------------------------
+define('OPENAI_API_KEY', '');         // sk-...
+define('OPENAI_MODEL', 'gpt-4o-mini'); // Empfohlen: gpt-4o-mini (günstig + schnell)
+define('OPENAI_MAX_TOKENS', 500);
+define('OPENAI_TIMEOUT', 30);         // Sekunden
+
+// -----------------------------------------------------------------------
+// KI Rate Limiting (optional)
+// Maximale OpenAI-Anfragen pro Stunde pro Benutzer (bzw. IP für Gäste).
+// Standard: 20 — bei Missbrauch reduzieren, z. B. auf 5.
+// -----------------------------------------------------------------------
+// define('AI_RATE_LIMIT', 20);
+
+// -----------------------------------------------------------------------
+// Schreibrechte-Hinweis (nicht konfigurierbar, nur zur Erinnerung)
+// Folgende Verzeichnisse müssen für den Webserver schreibbar sein (chmod 755):
+//   uploads/avatars/
+//   logs/
+// -----------------------------------------------------------------------

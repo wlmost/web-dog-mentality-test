@@ -1,11 +1,44 @@
 DirectoryIndex index.php
 
+# Debug- und Test-Endpoints sperren (Defense-in-depth zur api/.htaccess)
+<FilesMatch "^(debug|debug-.+|test-.+|generate-password)\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
 # Authorization Header an PHP weitergeben (wird von Apache sonst blockiert)
 # Options +FollowSymLinks ist auf vielen Shared-Hosting-Servern Voraussetzung
 # für RewriteEngine On (verhindert 403-Fehler)
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
+
+    # HTTPS erzwingen — HTTP-Anfragen auf HTTPS umleiten (301 permanent)
+    # Ausnahme: localhost und 127.0.0.1 (lokale Entwicklung)
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+    # Authorization Header durchreichen
     RewriteCond %{HTTP:Authorization} ^(.+)$
     RewriteRule .* - [e=HTTP_AUTHORIZATION:%1,L]
+</IfModule>
+
+# HSTS: Browser sollen diese Domain für 1 Jahr nur noch per HTTPS ansprechen.
+# Nur aktiv wenn HTTPS aktiv ist (IfModule mod_headers.c).
+# ACHTUNG: Erst aktivieren wenn HTTPS auf dem Server sicher funktioniert —
+# danach ist HTTP für diese Domain im Browser dauerhaft gesperrt.
+<IfModule mod_headers.c>
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+    # Clickjacking-Schutz
+    Header always set X-Frame-Options "SAMEORIGIN"
+    # MIME-Sniffing verhindern
+    Header always set X-Content-Type-Options "nosniff"
+    # Referrer-Informationen einschränken (kein Token-Leak via Referrer-Header)
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>

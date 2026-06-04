@@ -24,15 +24,10 @@ set_exception_handler(function($e) use ($errorLogPath) {
     $errorMsg = "[$timestamp] EXCEPTION: {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}\n";
     $errorMsg .= "Stack trace:\n{$e->getTraceAsString()}\n\n";
     file_put_contents($errorLogPath, $errorMsg, FILE_APPEND);
-    
+
     header('Content-Type: application/json');
     http_response_code(500);
-    echo json_encode([
-        'error' => $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine(),
-        'type' => 'exception'
-    ]);
+    echo json_encode(['error' => 'Interner Serverfehler']);
     exit;
 });
 
@@ -42,15 +37,10 @@ register_shutdown_function(function() use ($errorLogPath) {
         $timestamp = date('Y-m-d H:i:s');
         $errorMsg = "[$timestamp] FATAL: {$error['message']} in {$error['file']}:{$error['line']}\n\n";
         file_put_contents($errorLogPath, $errorMsg, FILE_APPEND);
-        
+
         header('Content-Type: application/json');
         http_response_code(500);
-        echo json_encode([
-            'error' => $error['message'],
-            'file' => basename($error['file']),
-            'line' => $error['line'],
-            'type' => 'fatal'
-        ]);
+        echo json_encode(['error' => 'Interner Serverfehler']);
     }
 });
 
@@ -59,14 +49,93 @@ try {
 } catch (Exception $e) {
     $timestamp = date('Y-m-d H:i:s');
     file_put_contents($errorLogPath, "[$timestamp] CONFIG ERROR: {$e->getMessage()}\n\n", FILE_APPEND);
-    
+
     header('Content-Type: application/json');
     http_response_code(500);
-    echo json_encode(['error' => 'Konfigurationsfehler: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Interner Serverfehler']);
     exit;
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
+
+// -----------------------------------------------------------------------
+// Rate Limiting: max. AI_RATE_LIMIT Anfragen pro Stunde pro User/IP
+// Nutzt die Tabelle ai_rate_limits (Migration 004).
+// -----------------------------------------------------------------------
+define('AI_RATE_LIMIT', (int)(getenv('AI_RATE_LIMIT') ?: 20));
+
+/**
+ * Identifikator für Rate Limiting ermitteln.
+ * Gibt 'user_{id}' zurück wenn ein gültiger Token gesendet wird,
+ * sonst 'ip_{hash}' auf Basis der Client-IP.
+ */
+function getAiRateLimitIdentifier(mysqli $conn): string {
+    $authHeader = '';
+    if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+    } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+    }
+
+    if (!empty($authHeader)) {
+        $token = str_replace('Bearer ', '', $authHeader);
+        // Abgelaufene Sessions bereinigen
+        $conn->query("DELETE FROM " . tbl('auth_sessions') . " WHERE expires_at < NOW()");
+        $stmt = $conn->prepare("
+            SELECT u.id FROM " . tbl('auth_sessions') . " s
+            JOIN " . tbl('auth_users') . " u ON u.id = s.user_id
+            WHERE s.session_token = ? AND s.expires_at > NOW() AND u.is_active = TRUE
+        ");
+        $stmt->bind_param('s', $token);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        if ($row) {
+            return 'user_' . $row['id'];
+        }
+    }
+
+    // Fallback: SHA1 der IP (kein persönliches Datum gespeichert)
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    return 'ip_' . sha1($ip);
+}
+
+/**
+ * Rate Limit prüfen und Zähler erhöhen.
+ * Bricht mit HTTP 429 ab wenn das Limit überschritten ist.
+ */
+function checkAiRateLimit(mysqli $conn): void {
+    $identifier  = getAiRateLimitIdentifier($conn);
+    $windowHour  = date('Y-m-d H:00:00');
+
+    // Gelegentlich alte Fenster bereinigen (~1 % der Requests)
+    if (random_int(1, 100) === 1) {
+        $conn->query("DELETE FROM " . tbl('ai_rate_limits') .
+            " WHERE window_hour < DATE_SUB(NOW(), INTERVAL 48 HOUR)");
+    }
+
+    // Zähler atomar erhöhen (INSERT … ON DUPLICATE KEY UPDATE)
+    $stmt = $conn->prepare("
+        INSERT INTO " . tbl('ai_rate_limits') . " (identifier, window_hour, request_count)
+        VALUES (?, ?, 1)
+        ON DUPLICATE KEY UPDATE request_count = request_count + 1
+    ");
+    $stmt->bind_param('ss', $identifier, $windowHour);
+    $stmt->execute();
+
+    // Aktuellen Stand lesen
+    $stmt = $conn->prepare("
+        SELECT request_count FROM " . tbl('ai_rate_limits') . "
+        WHERE identifier = ? AND window_hour = ?
+    ");
+    $stmt->bind_param('ss', $identifier, $windowHour);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+
+    if ($row && $row['request_count'] > AI_RATE_LIMIT) {
+        header('Retry-After: 3600');
+        sendError('Zu viele Anfragen. Bitte in einer Stunde erneut versuchen.', 429);
+    }
+}
 
 // POST: KI-Features
 if ($method === 'POST') {
@@ -74,6 +143,9 @@ if ($method === 'POST') {
     if (!defined('OPENAI_API_KEY') || empty(OPENAI_API_KEY)) {
         sendError('OpenAI nicht konfiguriert. Bitte OPENAI_API_KEY in .env Datei setzen.', 503);
     }
+
+    // Rate Limit durchsetzen (vor jeder OpenAI-Anfrage)
+    checkAiRateLimit($conn);
     
     $action = $_GET['action'] ?? '';
     $data = getJsonInput();
@@ -82,12 +154,12 @@ if ($method === 'POST') {
     if ($action === 'ideal_profile') {
         validateRequired($data, ['breed', 'age_years', 'gender', 'intended_use']);
         
-        $breed = sanitizeString($data['breed']);
-        $age_years = validateInteger($data['age_years'], 0, 20);
-        $age_months = validateInteger($data['age_months'] ?? 0, 0, 11);
-        $gender = validateEnum($data['gender'], ['Rüde', 'Hündin']);
-        $intended_use = sanitizeString($data['intended_use']);
-        $test_count = validateInteger($data['test_count'] ?? 7, 1, 20);
+        $breed        = sanitizeForPrompt(sanitizeString($data['breed']), 100);
+        $age_years    = validateInteger($data['age_years'], 0, 20);
+        $age_months   = validateInteger($data['age_months'] ?? 0, 0, 11);
+        $gender       = validateEnum($data['gender'], ['Rüde', 'Hündin']);
+        $intended_use = sanitizeForPrompt(sanitizeString($data['intended_use']), 150);
+        $test_count   = validateInteger($data['test_count'] ?? 7, 1, 20);
         
         $max_value = $test_count * 2;
         $age_total = $age_years + ($age_months / 12.0);
@@ -193,9 +265,9 @@ Example for $test_count tests (range -$max_value to +$max_value):
                 throw new Exception('intended_use ist ein Array: ' . json_encode($dogData['intended_use']));
             }
             
-            $dogName = sanitizeString($dogData['dog_name']);
-            $breed = sanitizeString($dogData['breed']);
-            $intendedUse = sanitizeString($dogData['intended_use']);
+            $dogName     = sanitizeForPrompt(sanitizeString($dogData['dog_name']), 100);
+            $breed       = sanitizeForPrompt(sanitizeString($dogData['breed']), 100);
+            $intendedUse = sanitizeForPrompt(sanitizeString($dogData['intended_use']), 150);
         
         $prompt = "You are a certified dog behavior specialist and working dog consultant.
 
@@ -266,7 +338,8 @@ Write in professional yet accessible language, 300-400 words.";
             ]);
             
         } catch (Exception $e) {
-            sendError('KI-Fehler beim Erstellen der Bewertung', 500, ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            error_log('AI assessment error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            sendError('KI-Fehler beim Erstellen der Bewertung', 500);
         }
     }
     
@@ -277,6 +350,25 @@ Write in professional yet accessible language, 300-400 words.";
 
 else {
     sendError('Methode nicht erlaubt', 405);
+}
+
+/**
+ * Helper: Eingabe für KI-Prompts bereinigen.
+ *
+ * Entfernt alle Steuerzeichen (inkl. Zeilenumbrüche \n, \r) — das primäre
+ * Vehikel für Prompt-Injection — und begrenzt die Länge des Feldes.
+ */
+function sanitizeForPrompt(string $input, int $maxLength = 150): string {
+    // Alle ASCII-Steuerzeichen (inkl. \n, \r, \t, Null-Bytes) entfernen
+    $clean = preg_replace('/[\x00-\x1F\x7F]/u', ' ', $input);
+    // Mehrfach-Leerzeichen zusammenfassen
+    $clean = preg_replace('/\s+/', ' ', $clean ?? '');
+    $clean = trim($clean);
+    // Auf Maximallänge kürzen (mb_substr für Multibyte/Umlaute)
+    if (mb_strlen($clean) > $maxLength) {
+        $clean = mb_substr($clean, 0, $maxLength);
+    }
+    return $clean;
 }
 
 /**
