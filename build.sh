@@ -127,6 +127,21 @@ cp database/migrations/*.sql "$DIST/database/migrations/"
 ok "database/ (Schemas + Migrations)"
 
 # ---------------------------------------------------------------------------
+# uploads/ (mit .htaccess, ohne echte Uploads)
+# ---------------------------------------------------------------------------
+mkdir -p "$DIST/uploads/avatars"
+[[ -f "uploads/avatars/.htaccess" ]] && cp "uploads/avatars/.htaccess" "$DIST/uploads/avatars/.htaccess"
+touch "$DIST/uploads/avatars/.gitkeep"
+ok "uploads/avatars/ (.htaccess + .gitkeep)"
+
+# ---------------------------------------------------------------------------
+# logs/ anlegen (muss schreibbar sein, kein Inhalt)
+# ---------------------------------------------------------------------------
+mkdir -p "$DIST/logs"
+touch "$DIST/logs/.gitkeep"
+ok "logs/ angelegt"
+
+# ---------------------------------------------------------------------------
 # Root-Dateien
 # ---------------------------------------------------------------------------
 [[ -f ".htaccess"    ]] && cp ".htaccess"    "$DIST/.htaccess"
@@ -159,19 +174,24 @@ Dog Mentality Test – Deployment-Checkliste
    https://deine-domain.de/wizard/
    → Datenbankverbindung konfigurieren
    → Tabellenpräfix festlegen
-   → Tabellen erstellen
+   → Tabellen erstellen + Migrations einspielen
    → Admin-Benutzer anlegen
    → Installation abschließen (erzeugt api/config.local.php)
 
-3. Nach der Installation:
+3. KI-Features aktivieren (optional):
+   In api/config.local.php den OpenAI API-Key eintragen:
+     define('OPENAI_API_KEY', 'sk-...');
+   Key erstellen: https://platform.openai.com/api-keys
+
+4. Nach der Installation:
    - /wizard/-Verzeichnis per FTP SOFORT löschen!
    - /database/-Verzeichnis per FTP löschen (nicht öffentlich zugänglich lassen)
 
-4. php.ini.example → php.ini umbenennen falls nötig.
+5. php.ini.example → php.ini umbenennen falls nötig.
 
-5. Schreibrechte prüfen:
-   - uploads/ benötigt Schreibrechte (755 oder 777)
-   - logs/ benötigt Schreibrechte (755 oder 777)
+6. Schreibrechte prüfen (chmod 755):
+   - uploads/avatars/
+   - logs/
 EOF
 ok "DEPLOY_CHECKLIST.txt erstellt"
 
