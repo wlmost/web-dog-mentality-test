@@ -763,3 +763,13 @@ function resetPassword($conn, $input) {
 }
 
 function logAuthEvent($conn, $username, $action, $note = null) {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+    $ua = isset($_SERVER['HTTP_USER_AGENT']) ? substr($_SERVER['HTTP_USER_AGENT'], 0, 255) : null;
+
+    $stmt = $conn->prepare("
+        INSERT INTO " . tbl('auth_logs') . " (username, action, ip_address, user_agent)
+        VALUES (?, ?, ?, ?)
+    ");
+    $stmt->bind_param('ssss', $username, $action, $ip, $ua);
+    $stmt->execute();
+}

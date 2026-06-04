@@ -173,7 +173,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Die Datei <code>api/config.local.php</code> konnte nicht automatisch geschrieben werden (keine Schreibrechte). Bitte legen Sie die Datei manuell per FTP an.';
         }
 
-        // Schritt B: Wizard sperren (nur wenn Config erfolgreich geschrieben)
+        // Schritt B: Verzeichnisse anlegen
+        $baseDir   = dirname(__DIR__);
+        $dirsToCreate = [
+            $baseDir . '/logs',
+            $baseDir . '/uploads',
+            $baseDir . '/uploads/avatars',
+        ];
+        foreach ($dirsToCreate as $dir) {
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0755, true);
+            }
+        }
+        // .htaccess im Upload-Verzeichnis sicherstellen (verhindert PHP-Ausführung)
+        $avatarHtaccess = $baseDir . '/uploads/avatars/.htaccess';
+        if (!file_exists($avatarHtaccess)) {
+            $htaccessContent  = "# PHP-Ausführung in Upload-Verzeichnis verhindern\n";
+            $htaccessContent .= "<FilesMatch \"\\.(?:php[0-9]?|phtml|pl|py|cgi|sh)$\">\n";
+            $htaccessContent .= "    <IfModule mod_authz_core.c>\n";
+            $htaccessContent .= "        Require all denied\n";
+            $htaccessContent .= "    </IfModule>\n";
+            $htaccessContent .= "    <IfModule !mod_authz_core.c>\n";
+            $htaccessContent .= "        Order deny,allow\n";
+            $htaccessContent .= "        Deny from all\n";
+            $htaccessContent .= "    </IfModule>\n";
+            $htaccessContent .= "</FilesMatch>\n";
+            $htaccessContent .= "Options -ExecCGI -Indexes\n";
+            @file_put_contents($avatarHtaccess, $htaccessContent);
+        }
+
+        // Schritt C: Wizard sperren (nur wenn Config erfolgreich geschrieben)
         if ($error === '') {
             try {
                 WizardHelper::lock();
@@ -196,6 +225,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!WizardHelper::isConfigured()) {
                 throw new RuntimeException('api/config.local.php wurde noch nicht hochgeladen. Bitte zuerst die Datei per FTP übertragen.');
             }
+
+            // Verzeichnisse anlegen
+            $baseDir = dirname(__DIR__);
+            foreach ([$baseDir . '/logs', $baseDir . '/uploads', $baseDir . '/uploads/avatars'] as $dir) {
+                if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
+            }
+
             WizardHelper::lock();
 
             // Session bereinigen

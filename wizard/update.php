@@ -39,6 +39,22 @@ try {
 $available = WizardHelper::getAvailableMigrations();
 $applied   = WizardHelper::getAppliedMigrations($conn, DB_PREFIX);
 
+// Verzeichnisse sicherstellen (können bei älteren Installationen fehlen)
+$baseDir = dirname(__DIR__);
+foreach ([$baseDir . '/logs', $baseDir . '/uploads', $baseDir . '/uploads/avatars'] as $dir) {
+    if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
+}
+$avatarHtaccess = $baseDir . '/uploads/avatars/.htaccess';
+if (!file_exists($avatarHtaccess)) {
+    @file_put_contents($avatarHtaccess,
+        "# PHP-Ausführung in Upload-Verzeichnis verhindern\n" .
+        "<FilesMatch \"\\.(?:php[0-9]?|phtml|pl|py|cgi|sh)$\">\n" .
+        "    <IfModule mod_authz_core.c>\n        Require all denied\n    </IfModule>\n" .
+        "    <IfModule !mod_authz_core.c>\n        Order deny,allow\n        Deny from all\n    </IfModule>\n" .
+        "</FilesMatch>\nOptions -ExecCGI -Indexes\n"
+    );
+}
+
 $pending = array_filter($available, function (string $file) use ($applied): bool {
     return !in_array(WizardHelper::getMigrationVersion($file), $applied, true);
 });
