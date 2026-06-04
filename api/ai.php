@@ -62,7 +62,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 // Rate Limiting: max. AI_RATE_LIMIT Anfragen pro Stunde pro User/IP
 // Nutzt die Tabelle ai_rate_limits (Migration 004).
 // -----------------------------------------------------------------------
-define('AI_RATE_LIMIT', (int)(getenv('AI_RATE_LIMIT') ?: 20));
+define('AI_RATE_LIMIT', defined('AI_RATE_LIMIT') ? AI_RATE_LIMIT : 20);
 
 /**
  * Identifikator für Rate Limiting ermitteln.

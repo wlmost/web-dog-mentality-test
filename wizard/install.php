@@ -95,13 +95,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if (!$error) {
-                // Alle Migrations als bereits angewendet markieren (Neuinstallation)
+                // Migrations ausführen UND als angewendet markieren (Neuinstallation)
                 $migrations = WizardHelper::getAvailableMigrations();
                 foreach ($migrations as $file) {
+                    $result = WizardHelper::executeSqlFile($conn, $file, $prefix);
+                    $log    = array_merge($log, $result['log']);
+                    if (!$result['success']) {
+                        $error = 'Migrations-Fehler – bitte Log prüfen.';
+                        $_SESSION['install_log'] = $log;
+                        break;
+                    }
                     $version     = WizardHelper::getMigrationVersion($file);
                     $description = WizardHelper::getMigrationDescription($file);
                     WizardHelper::recordMigration($conn, $prefix, $version, $description);
-                    $log[] = "✅ Migration $version als angewendet markiert";
+                    $log[] = "✅ Migration $version eingespielt";
                 }
                 $conn->close();
                 $_SESSION['install_log'] = $log;
@@ -430,6 +437,13 @@ function renderFinished(): string
         <h3>⚠️ Wichtiger Sicherheitshinweis</h3>
         <p>Bitte entfernen Sie das Verzeichnis <code>/wizard/</code> <strong>sofort</strong> per FTP von Ihrem Server!</p>
     </div>
+    <div class="alert info">
+        <h3>🤖 KI-Features aktivieren (optional)</h3>
+        <p>Für die automatische Idealprofil-Generierung benötigen Sie einen OpenAI API-Key.<br>
+        Tragen Sie ihn in <code>api/config.local.php</code> ein:</p>
+        <pre style="background:#f5f5f5;padding:.5rem;border-radius:4px;margin-top:.5rem;font-size:.85rem;">define('OPENAI_API_KEY', 'sk-...');</pre>
+        <p style="margin-top:.5rem;font-size:.85rem;">Key erstellen: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a></p>
+    </div>
     <p><a href="../frontend/index.html" class="button">Zur Anwendung →</a></p>
     HTML;
 }
@@ -463,6 +477,7 @@ function renderPage(string $title, string $content): string
             .alert.error, div.alert.error { background: #fdecea; border-left: 4px solid #e74c3c; color: #c0392b; }
             .alert.success { background: #eafaf1; border-left: 4px solid #27ae60; color: #1e8449; }
             .alert.warning { background: #fef9e7; border-left: 4px solid #f39c12; color: #9a7d0a; }
+            .alert.info    { background: #eaf4fb; border-left: 4px solid #3498db; color: #1a5276; }
             p.success { color: #27ae60; margin-bottom: 1rem; font-weight: 600; }
             p.error  { color: #e74c3c; }
             ul.log { list-style: none; font-size: .8rem; max-height: 200px; overflow-y: auto; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; padding: .5rem; margin-bottom: 1rem; }

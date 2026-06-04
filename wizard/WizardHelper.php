@@ -181,17 +181,31 @@ class WizardHelper
     /** Erzeugt den Inhalt der config.local.php als String */
     public static function generateConfigContent(string $host, string $user, string $pass, string $name, string $prefix, int $port = 3306, string $origin = '*'): string
     {
+        $appUrl   = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
+                  . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+        $mailFrom = 'noreply@' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+
         return "<?php\n"
             . "declare(strict_types=1);\n"
             . "// Automatisch generiert vom Installations-Wizard – " . date('Y-m-d H:i:s') . "\n"
             . "// Diese Datei nicht ins Repository einchecken!\n\n"
+            . "// Datenbank\n"
             . "define('DB_HOST',     " . var_export($host,   true) . ");\n"
             . "define('DB_PORT',     $port);\n"
             . "define('DB_USER',     " . var_export($user,   true) . ");\n"
             . "define('DB_PASS',     " . var_export($pass,   true) . ");\n"
             . "define('DB_NAME',     " . var_export($name,   true) . ");\n"
-            . "define('DB_PREFIX',   " . var_export($prefix, true) . ");\n"
-            . "define('CORS_ORIGIN', " . var_export($origin, true) . ");\n";
+            . "define('DB_PREFIX',   " . var_export($prefix, true) . ");\n\n"
+            . "// CORS (leer = Same-Origin, nur ändern wenn Frontend auf anderer Domain)\n"
+            . "define('CORS_ORIGIN', " . var_export($origin === '*' ? '' : $origin, true) . ");\n\n"
+            . "// Anwendungs-URL (für Passwort-Reset-Links)\n"
+            . "define('APP_URL',   " . var_export($appUrl,   true) . ");\n"
+            . "define('MAIL_FROM', " . var_export($mailFrom, true) . ");\n\n"
+            . "// OpenAI API (für KI-Features – Key unter https://platform.openai.com/api-keys erstellen)\n"
+            . "define('OPENAI_API_KEY',    '');         // sk-... hier eintragen\n"
+            . "define('OPENAI_MODEL',      'gpt-4o-mini');\n"
+            . "define('OPENAI_MAX_TOKENS', 500);\n"
+            . "define('OPENAI_TIMEOUT',    30);\n";
     }
 
     /**

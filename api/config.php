@@ -50,18 +50,16 @@ if (file_exists(__DIR__ . '/config.local.php')) {
     require_once __DIR__ . '/config.local.php';
 }
 
-// Datenbank-Konfiguration
-if (!defined('DB_HOST'))      define('DB_HOST',      getenv('DB_HOST')        ?: 'localhost');
-if (!defined('DB_PORT'))      define('DB_PORT',      (int)(getenv('DB_PORT')  ?: 3306));
-if (!defined('DB_USER'))      define('DB_USER',      getenv('DB_USER')        ?: 'root');
-if (!defined('DB_PASS'))      define('DB_PASS',      getenv('DB_PASS')        ?: '');
-if (!defined('DB_NAME'))      define('DB_NAME',      getenv('DB_NAME')        ?: 'dog_mentality');
-if (!defined('DB_CHARSET'))   define('DB_CHARSET',   'utf8mb4');
-if (!defined('DB_PREFIX'))    define('DB_PREFIX',    getenv('DB_PREFIX')      ?: '');
-// CORS_ORIGIN darf KEIN Default haben — ein leerer Wert bedeutet: kein CORS-Header
-// (= Same-Origin-Policy des Browsers greift, was auf Shared Hosting der Normalfall ist).
-// Nur setzen wenn Frontend und API auf unterschiedlichen Origins laufen.
-if (!defined('CORS_ORIGIN')) define('CORS_ORIGIN', getenv('CORS_ORIGIN') ?: '');
+// Datenbank-Konfiguration (Werte kommen aus config.local.php)
+if (!defined('DB_HOST'))    define('DB_HOST',    'localhost');
+if (!defined('DB_PORT'))    define('DB_PORT',    3306);
+if (!defined('DB_USER'))    define('DB_USER',    'root');
+if (!defined('DB_PASS'))    define('DB_PASS',    '');
+if (!defined('DB_NAME'))    define('DB_NAME',    'dog_mentality');
+if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
+if (!defined('DB_PREFIX'))  define('DB_PREFIX',  '');
+// CORS_ORIGIN leer lassen = Same-Origin-Policy greift (Shared Hosting Standard)
+if (!defined('CORS_ORIGIN')) define('CORS_ORIGIN', '');
 
 // CORS Headers für Frontend-Zugriff
 // CORS_ORIGIN wird per config.local.php gesetzt (Wizard-Schritt 1).
@@ -80,11 +78,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// OpenAI Konfiguration
-define('OPENAI_API_KEY', getenv('OPENAI_API_KEY') ?: '');
-define('OPENAI_MODEL', getenv('OPENAI_MODEL') ?: 'gpt-4o-mini');
-define('OPENAI_MAX_TOKENS', (int)(getenv('OPENAI_MAX_TOKENS') ?: 500));
-define('OPENAI_TIMEOUT', (int)(getenv('OPENAI_TIMEOUT') ?: 30));
+// OpenAI Konfiguration (Werte kommen aus config.local.php)
+if (!defined('OPENAI_API_KEY'))    define('OPENAI_API_KEY',    '');
+if (!defined('OPENAI_MODEL'))      define('OPENAI_MODEL',      'gpt-4o-mini');
+if (!defined('OPENAI_MAX_TOKENS')) define('OPENAI_MAX_TOKENS', 500);
+if (!defined('OPENAI_TIMEOUT'))    define('OPENAI_TIMEOUT',    30);
 
 // Datenbank-Verbindung herstellen
 function getDbConnection() {
