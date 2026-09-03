@@ -30,7 +30,7 @@
 
 ## 2. CLI-Einstiegspunkt
 
-- [ ] 2.1 `scripts/migrate.php` implementieren
+- [x] 2.1 `scripts/migrate.php` implementieren
   - Agent: Developer
   - Dateien: `scripts/migrate.php` (neu)
   - Abhängigkeiten: 1.1
@@ -46,10 +46,10 @@
     Schlusszeile `MIGRATE OK: X angewendet, Y übersprungen` (`exit(0)`) bzw.
     `MIGRATE FAIL bei NNN: <fehler>` (`exit(1)`).
   - Akzeptanz:
-    - [ ] `php -l scripts/migrate.php` fehlerfrei
-    - [ ] Fehlende `config.local.php` → Exit 1 mit erklärender Meldung
-    - [ ] `--dry-run` ändert die DB nicht und endet mit Exit 0
-    - [ ] Erfolgslauf endet mit Exit 0, Fehlerlauf mit Exit 1
+    - [x] `php -l scripts/migrate.php` fehlerfrei
+    - [x] Fehlende `config.local.php` → Exit 1 mit erklärender Meldung
+    - [x] `--dry-run` ändert die DB nicht und endet mit Exit 0
+    - [x] Erfolgslauf endet mit Exit 0, Fehlerlauf mit Exit 1
 
 ## 3. Selbsttest
 
