@@ -21,14 +21,32 @@ require_once __DIR__ . '/MigrationRunner.php';
 
 /**
  * Beendet den Prozess mit einer Fehlermeldung auf STDERR und Exit-Code 1.
+ * Ist zu diesem Zeitpunkt bereits eine DB-Verbindung aufgebaut, wird sie
+ * vorher geschlossen (Parameter optional, da die meisten Aufrufstellen vor
+ * dem Verbindungsaufbau liegen).
  *
  * Hinweis: Kein `never`-Rückgabetyp (PHP 8.1+), da `composer.json` PHP 8.0
- * als Ziel-Plattform vorgibt.
+ * als Ziel-Plattform vorgibt. Aus demselben Grund kein `finally`-Block für
+ * das Verbindungs-Cleanup: `exit()` innerhalb eines try/catch-Blocks
+ * überspringt einen zugehörigen `finally`-Block, daher wird die Verbindung
+ * an jeder Austrittsstelle explizit über diese Funktion bzw. `migrateExit()`
+ * geschlossen.
  */
-function migrateFail(string $message): void
+function migrateFail(string $message, ?mysqli $conn = null): void
 {
     fwrite(STDERR, $message . PHP_EOL);
+    $conn?->close();
     exit(1);
+}
+
+/**
+ * Schließt die DB-Verbindung und beendet den Prozess erfolgreich
+ * (Exit-Code 0). Pendant zu migrateFail() für die Erfolgspfade.
+ */
+function migrateExit(mysqli $conn): void
+{
+    $conn->close();
+    exit(0);
 }
 
 if (!extension_loaded('mysqli')) {
@@ -84,13 +102,22 @@ $dbPort = defined('DB_PORT') ? (int)constant('DB_PORT') : 3306;
 
 mysqli_report(MYSQLI_REPORT_OFF);
 $conn = mysqli_init();
+// Das @ ist trotz MYSQLI_REPORT_OFF weiterhin nötig: MYSQLI_REPORT_OFF
+// unterdrückt zwar die seit PHP 8.1 standardmäßig geworfene
+// mysqli_sql_exception, nicht aber die von real_connect() bei einem
+// Verbindungsfehler zusätzlich ausgelöste PHP E_WARNING (empirisch
+// verifiziert: `php -r 'mysqli_report(MYSQLI_REPORT_OFF); mysqli_init()
+// ->real_connect("127.0.0.1", "x", "x", "x", 1);'` gibt ohne @ trotzdem
+// eine Warnung aus). Ohne @ würde bei einem Verbindungsfehler also
+// zusätzlich zur sauberen migrateFail()-Meldung eine PHP-Warnung auf
+// STDERR erscheinen.
 if ($conn === false || !@$conn->real_connect($dbHost, $dbUser, $dbPass, $dbName, $dbPort)) {
     $connectError = $conn instanceof mysqli ? $conn->connect_error : mysqli_connect_error();
     migrateFail('MIGRATE FAIL: Datenbankverbindung fehlgeschlagen: ' . $connectError);
 }
 
 if (!$conn->set_charset('utf8mb4')) {
-    migrateFail('MIGRATE FAIL: Charset utf8mb4 konnte nicht gesetzt werden: ' . $conn->error);
+    migrateFail('MIGRATE FAIL: Charset utf8mb4 konnte nicht gesetzt werden: ' . $conn->error, $conn);
 }
 
 try {
@@ -99,11 +126,26 @@ try {
         // Tracking-Tabelle NICHT über ensureTrackingTable() angelegt, sondern
         // nur lesend geprüft, ob sie bereits existiert. Fehlt sie, gelten
         // alle Migrationen als ausstehend.
+        //
+        // Hinweis (DRY): Der Tabellenname wird hier bewusst separat gebaut
+        // statt über eine gemeinsame MigrationRunner-Methode, da
+        // MigrationRunner aktuell keine rein lesende
+        // „existiert die Tracking-Tabelle bereits"-Abfrage anbietet
+        // (ensureTrackingTable() legt sie ggf. an, was im Dry-Run verboten
+        // ist). Eine schreibfreie MigrationRunner::trackingTableExists()
+        // würde das konsolidieren, wäre aber eine Änderung an
+        // scripts/MigrationRunner.php und damit außerhalb des Datei-Scopes
+        // dieser Korrektur (siehe task-T2.1.notes.md).
         $trackingTable = $dbPrefix . 'schema_migrations';
         $tableCheck = $conn->query(
             "SHOW TABLES LIKE '" . $conn->real_escape_string($trackingTable) . "'"
         );
-        $trackingTableExists = $tableCheck instanceof mysqli_result && $tableCheck->num_rows > 0;
+
+        if ($tableCheck === false) {
+            migrateFail('MIGRATE FAIL: Prüfung auf Tracking-Tabelle fehlgeschlagen: ' . $conn->error, $conn);
+        }
+
+        $trackingTableExists = $tableCheck->num_rows > 0;
 
         $appliedVersions = $trackingTableExists
             ? array_flip(MigrationRunner::getAppliedVersions($conn, $dbPrefix))
@@ -123,7 +165,7 @@ try {
             echo 'Ausstehende Migrationen: ' . implode(', ', $pendingVersions) . PHP_EOL;
         }
 
-        exit(0);
+        migrateExit($conn);
     }
 
     MigrationRunner::ensureTrackingTable($conn, $dbPrefix);
@@ -138,7 +180,7 @@ try {
             'MIGRATE FAIL bei %s: %s',
             $result['failedVersion'],
             $result['failedError'] ?? 'unbekannter Fehler'
-        ));
+        ), $conn);
     }
 
     printf(
@@ -147,9 +189,20 @@ try {
         count($result['skipped']),
         PHP_EOL
     );
-    exit(0);
+    migrateExit($conn);
 } catch (Throwable $exception) {
-    migrateFail('MIGRATE FAIL: ' . $exception->getMessage());
-} finally {
-    $conn->close();
+    // Fängt u. a. RuntimeException aus MigrationRunner::recordMigration()
+    // ab, falls das Eintragen einer erfolgreich angewendeten Migration
+    // fehlschlägt (runPending() reicht diese ungefangen durch). Die Meldung
+    // enthält die Versionsnummer meist im Fließtext
+    // ("Migration NNN konnte nicht in ... eingetragen werden: ..."),
+    // außer wenn bereits das Prepare fehlschlägt (dann lautet die Meldung
+    // "Prepare fehlgeschlagen: ..." ohne Versionsnummer, empirisch gegen
+    // Docker verifiziert). In beiden Fällen entspricht das Format nicht
+    // exakt dem "MIGRATE FAIL bei NNN: <fehler>"-Schema von design.md D6.
+    // Eine strukturelle Angleichung erfordert, dass runPending()
+    // (scripts/MigrationRunner.php) diesen Fehlerfall selbst in die
+    // failedVersion/failedError-Struktur abbildet — außerhalb des
+    // Datei-Scopes dieser Korrektur (siehe task-T2.1.notes.md).
+    migrateFail('MIGRATE FAIL: ' . $exception->getMessage(), $conn);
 }
