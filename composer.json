@@ -1,4 +1,8 @@
 {
+  "name": "wlmost/web-dog-mentality-test",
+  "description": "Dog Mentality Test – Vanilla-PHP-Webanwendung zur OCEAN-Verhaltensbewertung von Hunden",
+  "license": "proprietary",
+  "type": "project",
   "require": {
     "phpoffice/phpspreadsheet": "^1.29"
   },

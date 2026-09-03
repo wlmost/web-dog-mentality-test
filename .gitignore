@@ -29,7 +29,6 @@ desktop.ini
 
 # PHP
 vendor/
-composer.lock
 
 # 2FA Secrets
 2fa*
