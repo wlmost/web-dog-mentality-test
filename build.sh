@@ -11,11 +11,11 @@ DIST="dist/dog-mentality-test"
 # ---------------------------------------------------------------------------
 # Hilfsfunktionen
 # ---------------------------------------------------------------------------
-info()    { echo "  \033[36m$*\033[0m"; }
-ok()      { echo "  \033[32m✓ $*\033[0m"; }
-warn()    { echo "  \033[33m⚠ $*\033[0m"; }
-section() { echo ""; echo "\033[1;34m[$*]\033[0m"; }
-error()   { echo "\033[31m✗ $*\033[0m" >&2; exit 1; }
+info()    { printf '  \033[36m%s\033[0m\n' "$*"; }
+ok()      { printf '  \033[32m✓ %s\033[0m\n' "$*"; }
+warn()    { printf '  \033[33m⚠ %s\033[0m\n' "$*"; }
+section() { echo ""; printf '\033[1;34m[%s]\033[0m\n' "$*"; }
+error()   { printf '\033[31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 
 # ---------------------------------------------------------------------------
 # Verzeichnis-Prüfung
@@ -81,6 +81,7 @@ for f in "${API_PRODUCTION[@]}"; do
         warn "Nicht gefunden: api/$f"
     fi
 done
+[[ -f "$DIST/api/auth.php" ]] || error "Kern-Datei fehlt: api/auth.php"
 ok "api/ (${#API_PRODUCTION[@]} Dateien, ohne Debug/Test)"
 
 # ---------------------------------------------------------------------------
@@ -92,12 +93,14 @@ rsync -a \
     --exclude="test-api.html" \
     --exclude="test-token.html" \
     frontend/ "$DIST/frontend/"
+[[ -f "$DIST/frontend/index.html" ]] || error "Kern-Datei fehlt: frontend/index.html"
 ok "frontend/ (ohne Test-Seiten)"
 
 # ---------------------------------------------------------------------------
 # Wizard
 # ---------------------------------------------------------------------------
 cp -r wizard "$DIST/wizard"
+[[ -f "$DIST/wizard/index.php" ]] || error "Kern-Datei fehlt: wizard/index.php"
 # Lock-Datei mit Placeholder-Inhalt deployen (muss existieren, damit der Wizard
 # nach erfolgreicher Installation gesperrt werden kann)
 echo -n 'inactive' > "$DIST/wizard/.lock"
@@ -204,13 +207,13 @@ FILECOUNT=$(find "$DIST" -type f | wc -l | tr -d ' ')
 DIRSIZE=$(du -sh "$DIST" 2>/dev/null | cut -f1)
 
 echo ""
-echo "  \033[32mBereit für FTP-Upload:\033[0m"
+printf '  \033[32mBereit für FTP-Upload:\033[0m\n'
 echo "  Verzeichnis : $DIST/"
 echo "  Dateien     : $FILECOUNT"
 echo "  Größe       : $DIRSIZE"
 echo ""
 echo "  Nächste Schritte:"
-echo "  1. \033[1mdist/dog-mentality-test/\033[0m per FTP übertragen"
+printf '  1. \033[1mdist/dog-mentality-test/\033[0m per FTP übertragen\n'
 echo "  2. Wizard aufrufen: https://deine-domain.de/wizard/"
 echo "  3. Nach der Installation: /wizard/ per FTP löschen!"
 echo ""

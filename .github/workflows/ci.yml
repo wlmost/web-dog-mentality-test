@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.0"
+
+      - name: PHP-Syntaxprüfung
+        run: |
+          find . -name '*.php' -not -path './vendor/*' -not -path './dist/*' -print0 \
+            | xargs -0 -r -n1 -P4 php -l
+
+  composer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.0"
+          extensions: mbstring, ctype, gd, zip, mysqli, curl, json
+
+      - name: Composer validieren
+        run: composer validate --strict
+
+      - name: Abhängigkeiten installieren
+        run: composer install --no-dev --optimize-autoloader
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [composer]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.0"
+          extensions: mbstring, ctype, gd, zip, mysqli, curl, json
+
+      - name: rsync sicherstellen
+        run: command -v rsync || (sudo apt-get update && sudo apt-get install -y rsync)
+
+      - name: Build ausführen
+        run: bash build.sh
+
+      - name: Kern-Dateien verifizieren
+        run: |
+          for f in api/auth.php frontend/index.html wizard/index.php vendor/autoload.php; do
+            [[ -f "dist/dog-mentality-test/$f" ]] || { echo "::error::Kern-Datei fehlt: $f"; exit 1; }
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dog-mentality-test
+          path: dist/dog-mentality-test
+          retention-days: 3
