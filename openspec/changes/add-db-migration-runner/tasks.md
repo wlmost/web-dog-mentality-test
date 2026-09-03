@@ -1,6 +1,6 @@
 ## 1. MigrationRunner-Klasse
 
-- [ ] 1.1 `scripts/MigrationRunner.php` implementieren
+- [x] 1.1 `scripts/MigrationRunner.php` implementieren
   - Agent: Developer
   - Dateien: `scripts/MigrationRunner.php` (neu)
   - Abhängigkeiten: keine
@@ -22,10 +22,10 @@
     Kopf-Kommentar mit Verweis auf `wizard/WizardHelper.php` (Duplikat,
     Folge-Change zur Zusammenführung notiert).
   - Akzeptanz:
-    - [ ] `php -l scripts/MigrationRunner.php` ist fehlerfrei
-    - [ ] Klasse hat keine Abhängigkeit auf `wizard/`
-    - [ ] Versionssortierung ist numerisch (`002` vor `010`)
-    - [ ] `runPending` trägt eine fehlgeschlagene Migration **nicht** ein
+    - [x] `php -l scripts/MigrationRunner.php` ist fehlerfrei
+    - [x] Klasse hat keine Abhängigkeit auf `wizard/`
+    - [x] Versionssortierung ist numerisch (`002` vor `010`)
+    - [x] `runPending` trägt eine fehlgeschlagene Migration **nicht** ein
       und stoppt sofort
 
 ## 2. CLI-Einstiegspunkt
