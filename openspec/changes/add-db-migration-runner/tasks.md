@@ -70,7 +70,7 @@
       mit Exit 0 durch
     - [x] Bei absichtlich gebrochenem Runner meldet der Selbsttest Exit 1
 
-- [ ] 3.2 Selbsttest gegen lokale MySQL ausführen und dokumentieren
+- [x] 3.2 Selbsttest gegen lokale MySQL ausführen und dokumentieren
   - Agent: Developer
   - Dateien: — (Verifikation), ggf. kurzer Abschnitt in `README.md` oder
     neuer `scripts/README.md`
@@ -79,7 +79,7 @@
     MySQL 8, benötigte Env-Variablen). Ergebnis in
     `task-3.2.notes.md` protokollieren.
   - Akzeptanz:
-    - [ ] Dokumentierter Befehl reproduziert einen grünen Selbsttest-Lauf
+    - [x] Dokumentierter Befehl reproduziert einen grünen Selbsttest-Lauf
 
 ## 4. build.sh
 
