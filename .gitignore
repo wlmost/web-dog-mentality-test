@@ -27,6 +27,9 @@ desktop.ini
 *.swp
 *~
 
+# Wartungsmodus-Flag (wird vom Deploy-Workflow per SSH gesetzt/entfernt)
+.maintenance
+
 # PHP
 vendor/
 

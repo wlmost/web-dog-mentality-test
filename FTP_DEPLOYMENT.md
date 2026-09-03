@@ -1,5 +1,11 @@
 # FTP-Only Deployment (ohne Shell-Zugriff)
 
+> **Hinweis:** Die Produktion läuft bei **alfahosting** mit SSH-Zugang. Der
+> automatische **CI/CD-Deploy** (`.github/workflows/deploy.yml`, siehe
+> [`CI_CD.md`](CI_CD.md)) ist der bevorzugte Weg für Deployments. Die
+> folgende FTP-Anleitung bleibt als **Fallback** erhalten (z. B. für
+> Notfälle ohne CI-Zugriff).
+
 ## Übersicht
 
 Diese Anleitung beschreibt das Deployment auf Shared Webhosting **nur mit FTP-Zugriff** (kein SSH, kein Composer).
