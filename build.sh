@@ -130,6 +130,16 @@ cp database/migrations/*.sql "$DIST/database/migrations/"
 ok "database/ (Schemas + Migrations)"
 
 # ---------------------------------------------------------------------------
+# Migration-Runner (Allowlist – migrate-selftest.php und README.md bleiben
+# bewusst außen vor)
+# ---------------------------------------------------------------------------
+mkdir -p "$DIST/scripts"
+[[ -f "scripts/MigrationRunner.php" ]] || error "Kern-Datei fehlt: scripts/MigrationRunner.php"
+[[ -f "scripts/migrate.php" ]] || error "Kern-Datei fehlt: scripts/migrate.php"
+cp scripts/MigrationRunner.php scripts/migrate.php "$DIST/scripts/"
+ok "scripts/ (MigrationRunner.php, migrate.php)"
+
+# ---------------------------------------------------------------------------
 # uploads/ (mit .htaccess, ohne echte Uploads)
 # ---------------------------------------------------------------------------
 mkdir -p "$DIST/uploads/avatars"

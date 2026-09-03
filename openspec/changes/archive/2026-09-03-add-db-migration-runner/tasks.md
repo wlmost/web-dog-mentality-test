@@ -1,6 +1,6 @@
 ## 1. MigrationRunner-Klasse
 
-- [ ] 1.1 `scripts/MigrationRunner.php` implementieren
+- [x] 1.1 `scripts/MigrationRunner.php` implementieren
   - Agent: Developer
   - Dateien: `scripts/MigrationRunner.php` (neu)
   - Abhängigkeiten: keine
@@ -22,15 +22,15 @@
     Kopf-Kommentar mit Verweis auf `wizard/WizardHelper.php` (Duplikat,
     Folge-Change zur Zusammenführung notiert).
   - Akzeptanz:
-    - [ ] `php -l scripts/MigrationRunner.php` ist fehlerfrei
-    - [ ] Klasse hat keine Abhängigkeit auf `wizard/`
-    - [ ] Versionssortierung ist numerisch (`002` vor `010`)
-    - [ ] `runPending` trägt eine fehlgeschlagene Migration **nicht** ein
+    - [x] `php -l scripts/MigrationRunner.php` ist fehlerfrei
+    - [x] Klasse hat keine Abhängigkeit auf `wizard/`
+    - [x] Versionssortierung ist numerisch (`002` vor `010`)
+    - [x] `runPending` trägt eine fehlgeschlagene Migration **nicht** ein
       und stoppt sofort
 
 ## 2. CLI-Einstiegspunkt
 
-- [ ] 2.1 `scripts/migrate.php` implementieren
+- [x] 2.1 `scripts/migrate.php` implementieren
   - Agent: Developer
   - Dateien: `scripts/migrate.php` (neu)
   - Abhängigkeiten: 1.1
@@ -46,14 +46,14 @@
     Schlusszeile `MIGRATE OK: X angewendet, Y übersprungen` (`exit(0)`) bzw.
     `MIGRATE FAIL bei NNN: <fehler>` (`exit(1)`).
   - Akzeptanz:
-    - [ ] `php -l scripts/migrate.php` fehlerfrei
-    - [ ] Fehlende `config.local.php` → Exit 1 mit erklärender Meldung
-    - [ ] `--dry-run` ändert die DB nicht und endet mit Exit 0
-    - [ ] Erfolgslauf endet mit Exit 0, Fehlerlauf mit Exit 1
+    - [x] `php -l scripts/migrate.php` fehlerfrei
+    - [x] Fehlende `config.local.php` → Exit 1 mit erklärender Meldung
+    - [x] `--dry-run` ändert die DB nicht und endet mit Exit 0
+    - [x] Erfolgslauf endet mit Exit 0, Fehlerlauf mit Exit 1
 
 ## 3. Selbsttest
 
-- [ ] 3.1 `scripts/migrate-selftest.php` implementieren
+- [x] 3.1 `scripts/migrate-selftest.php` implementieren
   - Agent: Developer
   - Dateien: `scripts/migrate-selftest.php` (neu)
   - Abhängigkeiten: 2.1
@@ -65,12 +65,12 @@
     Zusatzmigration in einem Test-Temp-Pfad). Räumt Testtabellen am Ende auf.
     Exit 0 nur bei allen bestandenen Assertions, sonst Exit 1.
   - Akzeptanz:
-    - [ ] `php -l scripts/migrate-selftest.php` fehlerfrei
-    - [ ] Gegen eine leere lokale MySQL/MariaDB (Docker) läuft der Selbsttest
+    - [x] `php -l scripts/migrate-selftest.php` fehlerfrei
+    - [x] Gegen eine leere lokale MySQL/MariaDB (Docker) läuft der Selbsttest
       mit Exit 0 durch
-    - [ ] Bei absichtlich gebrochenem Runner meldet der Selbsttest Exit 1
+    - [x] Bei absichtlich gebrochenem Runner meldet der Selbsttest Exit 1
 
-- [ ] 3.2 Selbsttest gegen lokale MySQL ausführen und dokumentieren
+- [x] 3.2 Selbsttest gegen lokale MySQL ausführen und dokumentieren
   - Agent: Developer
   - Dateien: — (Verifikation), ggf. kurzer Abschnitt in `README.md` oder
     neuer `scripts/README.md`
@@ -79,11 +79,11 @@
     MySQL 8, benötigte Env-Variablen). Ergebnis in
     `task-3.2.notes.md` protokollieren.
   - Akzeptanz:
-    - [ ] Dokumentierter Befehl reproduziert einen grünen Selbsttest-Lauf
+    - [x] Dokumentierter Befehl reproduziert einen grünen Selbsttest-Lauf
 
 ## 4. build.sh
 
-- [ ] 4.1 `scripts/` ins Deploy-Paket aufnehmen
+- [x] 4.1 `scripts/` ins Deploy-Paket aufnehmen
   - Agent: Developer
   - Dateien: `build.sh`
   - Abhängigkeiten: 1.1, 2.1
@@ -92,9 +92,9 @@
     `cp scripts/MigrationRunner.php scripts/migrate.php "$DIST/scripts/"`
     ergänzen (Allowlist — `migrate-selftest.php` bewusst ausgenommen).
   - Akzeptanz:
-    - [ ] Nach `bash build.sh` existieren
+    - [x] Nach `bash build.sh` existieren
       `dist/dog-mentality-test/scripts/MigrationRunner.php` und
       `.../scripts/migrate.php`
-    - [ ] `dist/dog-mentality-test/scripts/migrate-selftest.php` existiert
+    - [x] `dist/dog-mentality-test/scripts/migrate-selftest.php` existiert
       nicht
-    - [ ] `bash build.sh` endet mit Exit-Code 0
+    - [x] `bash build.sh` endet mit Exit-Code 0
