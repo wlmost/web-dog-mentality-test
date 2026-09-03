@@ -130,6 +130,13 @@ cp database/migrations/*.sql "$DIST/database/migrations/"
 ok "database/ (Schemas + Migrations)"
 
 # ---------------------------------------------------------------------------
+# Migration-Runner (Allowlist – migrate-selftest.php bleibt bewusst außen vor)
+# ---------------------------------------------------------------------------
+mkdir -p "$DIST/scripts"
+cp scripts/MigrationRunner.php scripts/migrate.php "$DIST/scripts/"
+ok "scripts/ (MigrationRunner.php, migrate.php)"
+
+# ---------------------------------------------------------------------------
 # uploads/ (mit .htaccess, ohne echte Uploads)
 # ---------------------------------------------------------------------------
 mkdir -p "$DIST/uploads/avatars"

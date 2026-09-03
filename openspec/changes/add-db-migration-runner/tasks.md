@@ -83,7 +83,7 @@
 
 ## 4. build.sh
 
-- [ ] 4.1 `scripts/` ins Deploy-Paket aufnehmen
+- [x] 4.1 `scripts/` ins Deploy-Paket aufnehmen
   - Agent: Developer
   - Dateien: `build.sh`
   - Abhängigkeiten: 1.1, 2.1
@@ -92,9 +92,9 @@
     `cp scripts/MigrationRunner.php scripts/migrate.php "$DIST/scripts/"`
     ergänzen (Allowlist — `migrate-selftest.php` bewusst ausgenommen).
   - Akzeptanz:
-    - [ ] Nach `bash build.sh` existieren
+    - [x] Nach `bash build.sh` existieren
       `dist/dog-mentality-test/scripts/MigrationRunner.php` und
       `.../scripts/migrate.php`
-    - [ ] `dist/dog-mentality-test/scripts/migrate-selftest.php` existiert
+    - [x] `dist/dog-mentality-test/scripts/migrate-selftest.php` existiert
       nicht
-    - [ ] `bash build.sh` endet mit Exit-Code 0
+    - [x] `bash build.sh` endet mit Exit-Code 0
