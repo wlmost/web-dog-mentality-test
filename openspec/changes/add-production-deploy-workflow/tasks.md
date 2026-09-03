@@ -247,6 +247,10 @@
     zum Approval durchführen und die Summary kontrollieren. Ergebnis in
     `task-5.1.notes.md`.
   - Akzeptanz:
-    - [ ] `actionlint` meldet keine Fehler für `deploy.yml`
+    - [x] `actionlint` meldet keine Fehler für `deploy.yml`
     - [ ] Ein pausierter Lauf im Status „Waiting" ist im Actions-UI sichtbar
+      (blockiert: erfordert vom User eingerichtetes GitHub Environment
+      `production` mit Secrets, siehe `task-5.1.notes.md`)
     - [ ] Nach Approval laufen die Steps in der spezifizierten Reihenfolge
+      (blockiert aus demselben Grund; Reihenfolge lokal/strukturell bereits
+      gegen design.md D8 verifiziert, siehe task-T3.4-3.7.test-report.md)
