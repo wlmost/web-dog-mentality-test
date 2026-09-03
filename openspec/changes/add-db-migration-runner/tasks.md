@@ -53,7 +53,7 @@
 
 ## 3. Selbsttest
 
-- [ ] 3.1 `scripts/migrate-selftest.php` implementieren
+- [x] 3.1 `scripts/migrate-selftest.php` implementieren
   - Agent: Developer
   - Dateien: `scripts/migrate-selftest.php` (neu)
   - Abhängigkeiten: 2.1
@@ -65,10 +65,10 @@
     Zusatzmigration in einem Test-Temp-Pfad). Räumt Testtabellen am Ende auf.
     Exit 0 nur bei allen bestandenen Assertions, sonst Exit 1.
   - Akzeptanz:
-    - [ ] `php -l scripts/migrate-selftest.php` fehlerfrei
-    - [ ] Gegen eine leere lokale MySQL/MariaDB (Docker) läuft der Selbsttest
+    - [x] `php -l scripts/migrate-selftest.php` fehlerfrei
+    - [x] Gegen eine leere lokale MySQL/MariaDB (Docker) läuft der Selbsttest
       mit Exit 0 durch
-    - [ ] Bei absichtlich gebrochenem Runner meldet der Selbsttest Exit 1
+    - [x] Bei absichtlich gebrochenem Runner meldet der Selbsttest Exit 1
 
 - [ ] 3.2 Selbsttest gegen lokale MySQL ausführen und dokumentieren
   - Agent: Developer

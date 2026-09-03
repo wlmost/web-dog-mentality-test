@@ -27,11 +27,21 @@ class MigrationRunner
      * nach dem führenden Zahlpräfix des Dateinamens sortiert
      * (z. B. 002_*.sql vor 010_*.sql).
      *
+     * @param string|null $migrationsDir Optionales Override des
+     *     Migrations-Verzeichnisses (Default: `database/migrations/` relativ
+     *     zu dieser Datei). Ausschließlich für
+     *     `scripts/migrate-selftest.php` (T3.1) gedacht, um dort Szenario 4
+     *     (absichtlich kaputte Zusatzmigration) in einem isolierten
+     *     Test-Temp-Verzeichnis zu prüfen, ohne `database/migrations/`
+     *     anzufassen. Kein Teil der öffentlichen CLI-Schnittstelle von
+     *     `scripts/migrate.php`.
      * @return string[] Absolute Pfade zu den Migrationsdateien
      */
-    public static function getAvailableMigrations(): array
+    public static function getAvailableMigrations(?string $migrationsDir = null): array
     {
-        $dir = __DIR__ . '/../database/migrations/';
+        $dir = $migrationsDir !== null
+            ? rtrim($migrationsDir, '/') . '/'
+            : __DIR__ . '/../database/migrations/';
         if (!is_dir($dir)) {
             return [];
         }
@@ -268,6 +278,8 @@ class MigrationRunner
      * Migration wird **nicht** eingetragen, bereits zuvor erfolgreich
      * angewendete Migrationen bleiben eingetragen.
      *
+     * @param string|null $migrationsDir Optionales Override, siehe
+     *     {@see getAvailableMigrations()} (nur für den Selbsttest, T3.1).
      * @return array{
      *     applied: array<int, array{version: string, description: string}>,
      *     skipped: string[],
@@ -278,7 +290,7 @@ class MigrationRunner
      *     failedStatement: string|null
      * }
      */
-    public static function runPending(mysqli $conn, string $prefix): array
+    public static function runPending(mysqli $conn, string $prefix, ?string $migrationsDir = null): array
     {
         $appliedVersions = self::getAppliedVersions($conn, $prefix);
         $appliedLookup = array_flip($appliedVersions);
@@ -287,7 +299,7 @@ class MigrationRunner
         $skipped = [];
         $log = [];
 
-        foreach (self::getAvailableMigrations() as $file) {
+        foreach (self::getAvailableMigrations($migrationsDir) as $file) {
             $version = self::getMigrationVersion($file);
 
             if (isset($appliedLookup[$version])) {

@@ -73,6 +73,15 @@ if ($configPath === null) {
     $configPath = __DIR__ . '/../api/config.local.php';
 }
 
+// Testinterner Override des Migrations-Verzeichnisses: ausschließlich für
+// scripts/migrate-selftest.php (T3.1), das Szenario 4 (absichtlich kaputte
+// Zusatzmigration) in einem isolierten Test-Temp-Verzeichnis prüft, ohne
+// database/migrations/ anzufassen. Kein Teil der dokumentierten
+// CLI-Schnittstelle (design.md D6 kennt nur --dry-run und den
+// Config-Pfad-Parameter); bewusst nicht in --help/Fehlermeldungen erwähnt.
+$migrationsDirOverride = getenv('MIGRATE_MIGRATIONS_DIR');
+$migrationsDirOverride = $migrationsDirOverride !== false ? $migrationsDirOverride : null;
+
 if (!is_file($configPath)) {
     migrateFail("MIGRATE FAIL: Konfigurationsdatei nicht gefunden: $configPath");
 }
@@ -152,7 +161,7 @@ try {
             : [];
         $pendingVersions = [];
 
-        foreach (MigrationRunner::getAvailableMigrations() as $file) {
+        foreach (MigrationRunner::getAvailableMigrations($migrationsDirOverride) as $file) {
             $version = MigrationRunner::getMigrationVersion($file);
             if (!isset($appliedVersions[$version])) {
                 $pendingVersions[] = $version;
@@ -169,7 +178,7 @@ try {
     }
 
     MigrationRunner::ensureTrackingTable($conn, $dbPrefix);
-    $result = MigrationRunner::runPending($conn, $dbPrefix);
+    $result = MigrationRunner::runPending($conn, $dbPrefix, $migrationsDirOverride);
 
     foreach ($result['log'] as $logLine) {
         echo $logLine . PHP_EOL;
