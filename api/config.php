@@ -2,9 +2,20 @@
 declare(strict_types=1);
 /**
  * Datenbank-Konfiguration und Verbindung
- * 
+ *
  * Lädt Umgebungsvariablen aus .env und stellt MySQL-Verbindung her
  */
+
+// Wartungsmodus: wird per Deploy-Workflow durch Anlegen/Entfernen von
+// .maintenance im Projekt-Root gesteuert. Muss vor loadEnv() und vor jeder
+// Datenbanknutzung geprüft werden.
+if (is_file(__DIR__ . '/../.maintenance')) {
+    http_response_code(503);
+    header('Retry-After: 120');
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['error' => 'Wartungsarbeiten – bitte in Kürze erneut versuchen']);
+    exit;
+}
 
 // Error Reporting (nur während Entwicklung aktiviert)
 error_reporting(E_ALL);

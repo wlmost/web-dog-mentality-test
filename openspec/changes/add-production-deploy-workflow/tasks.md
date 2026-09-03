@@ -1,6 +1,6 @@
 ## 1. Wartungsmodus
 
-- [ ] 1.1 `.maintenance`-Guard in `index.php`
+- [x] 1.1 `.maintenance`-Guard in `index.php`
   - Agent: Developer
   - Dateien: `index.php`
   - Abhängigkeiten: keine
@@ -9,12 +9,12 @@
     `header('Retry-After: 120')`, `header('Content-Type: text/html; charset=utf-8')`,
     `readfile(__DIR__ . '/maintenance.html')`, `exit;`.
   - Akzeptanz:
-    - [ ] `php -l index.php` fehlerfrei
-    - [ ] Mit vorhandener `.maintenance` liefert ein Aufruf HTTP 503 +
+    - [x] `php -l index.php` fehlerfrei
+    - [x] Mit vorhandener `.maintenance` liefert ein Aufruf HTTP 503 +
       `Retry-After` + Inhalt von `maintenance.html`
-    - [ ] Ohne `.maintenance` unverändertes Redirect-Verhalten
+    - [x] Ohne `.maintenance` unverändertes Redirect-Verhalten
 
-- [ ] 1.2 `.maintenance`-Guard in `api/config.php`
+- [x] 1.2 `.maintenance`-Guard in `api/config.php`
   - Agent: Developer
   - Dateien: `api/config.php`
   - Abhängigkeiten: keine
@@ -27,29 +27,29 @@
     `echo json_encode(['error' => 'Wartungsarbeiten – bitte in Kürze erneut versuchen'])`,
     `exit;`.
   - Akzeptanz:
-    - [ ] `php -l api/config.php` fehlerfrei
-    - [ ] Mit `.maintenance` liefert ein API-Aufruf HTTP 503 + JSON-Fehler,
+    - [x] `php -l api/config.php` fehlerfrei
+    - [x] Mit `.maintenance` liefert ein API-Aufruf HTTP 503 + JSON-Fehler,
       **ohne** dass `getDbConnection()` erreicht wird
-    - [ ] Ohne `.maintenance` unverändertes Verhalten
+    - [x] Ohne `.maintenance` unverändertes Verhalten
 
-- [ ] 1.3 `maintenance.html` anlegen
+- [x] 1.3 `maintenance.html` anlegen
   - Agent: Developer
   - Dateien: `maintenance.html` (neu)
   - Abhängigkeiten: keine
   - Beschreibung: Schlanke, in sich geschlossene HTML-Seite (kein PHP, keine
     externen Assets/Fonts), deutschsprachig, kurzer Hinweis „Wartungsarbeiten".
   - Akzeptanz:
-    - [ ] Datei ist valides HTML ohne externe Requests
-    - [ ] Wird ohne Server-Fehler direkt ausgeliefert
+    - [x] Datei ist valides HTML ohne externe Requests
+    - [x] Wird ohne Server-Fehler direkt ausgeliefert
 
-- [ ] 1.4 `.gitignore` um `.maintenance` ergänzen
+- [x] 1.4 `.gitignore` um `.maintenance` ergänzen
   - Agent: Developer
   - Dateien: `.gitignore`
   - Abhängigkeiten: keine
   - Beschreibung: Eintrag `.maintenance` (Laufzeit-Flag) ergänzen, sinnvoll
     im Block nahe `# Temporary files` oder eigener Kommentarblock.
   - Akzeptanz:
-    - [ ] `git check-ignore .maintenance` bestätigt den Eintrag
+    - [x] `git check-ignore .maintenance` bestätigt den Eintrag
 
 ## 2. build.sh
 
