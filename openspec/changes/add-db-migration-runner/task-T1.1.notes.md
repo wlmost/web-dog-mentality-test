@@ -92,6 +92,60 @@ Folge-Schritt (T2.1-Verifikation oder eigener Fix) berücksichtigt werden kann.
     Schema-Mismatches (`auth_users` vs. `users`) fehl — Fehlerbehandlung selbst
     funktioniert korrekt (kontrollierter Abbruch, kein Eintrag).
 
+## Nachträgliche Korrektur (Review-Muss-Befund, `task-T1.1.review.md`)
+
+Der Review hat zu Recht bemängelt, dass `recordMigration()` den in `runQuery()`
+etablierten Härtungsmechanismus nicht nutzte: `$stmt->execute()` (Prepared Statement)
+wurde ungeprüft aufgerufen, nur `mysqli_sql_exception` wurde abgefangen. Unter PHP 8.0
+(Default-Report-Modus `MYSQLI_REPORT_OFF`, keine Exceptions) hätte ein fehlgeschlagener
+`INSERT` in `<prefix>schema_migrations` (z. B. durch eine Duplicate-Key-Verletzung)
+`execute()` lediglich `false` liefern lassen — dieser Rückgabewert wurde bisher
+komplett ignoriert. `recordMigration()` wäre normal zurückgekehrt, `runPending()` hätte
+die Migration fälschlich als angewendet gemeldet, obwohl kein Tracking-Datensatz
+existiert. Das verletzt die Idempotenz-Anforderung der Spec.
+
+**Ursache, warum `runQuery()` nicht direkt wiederverwendbar war:** `runQuery()` ist auf
+`mysqli::query()` zugeschnitten, dessen Rückgabetyp `mysqli_result|bool` ist. Ein
+Prepared Statement wird dagegen über `mysqli_stmt::execute()` ausgeführt, das nur `bool`
+zurückgibt (kein Result-Objekt) — beide APIs haben also eine unterschiedliche
+Rückgabe-Semantik und lassen sich nicht durch denselben Funktionskörper abbilden.
+
+**Fix:** Neuer privater Helfer `runStatement(mysqli_stmt $stmt): ?string` (Pendant zu
+`runQuery()`, aber für die bool-Semantik von `mysqli_stmt::execute()`): führt `execute()`
+aus, liefert bei `false`-Rückgabe `$stmt->error`, bei einer `mysqli_sql_exception` deren
+Nachricht, sonst `null`. `recordMigration()` ruft jetzt `self::runStatement($stmt)` auf
+und wirft eine `RuntimeException`, sobald ein Fehlertext zurückkommt — unabhängig davon,
+ob der Fehler über eine Exception (PHP ≥ 8.1) oder über `false` (PHP 8.0, klassischer
+Report-Modus) signalisiert wurde. Der äußere `try`/`catch (mysqli_sql_exception)` bleibt
+erhalten, um auch ein im Exception-Modus werfendes `prepare()` abzudecken.
+
+Zusätzlich (Sollte-Befund, kosmetisch): In `ensureTrackingTable()` wurde die
+Destrukturierungs-Variable `$success` in `$result` umbenannt, konsistent zu den übrigen
+`runQuery()`-Aufrufstellen (`getAppliedVersions()`, `executeSqlFile()`).
+
+### Verifikation der Korrektur
+
+- `php -l scripts/MigrationRunner.php` → fehlerfrei.
+- Funktionaler Test gegen einen kurzlebigen `mysql:8.0`-Docker-Container
+  (`docker run -d --name migrunner-test-mysql -e MYSQL_ROOT_PASSWORD=root
+  -e MYSQL_DATABASE=migtest -p 33061:3306 mysql:8.0`, danach `docker rm -f
+  migrunner-test-mysql` — kein Container hinterlassen):
+  - Tracking-Tabelle angelegt, ein Datensatz mit `version='999'` vorab eingefügt, dann
+    `recordMigration()` erneut mit `version='999'` aufgerufen (Primary-Key-Verletzung,
+    `prepare()` gelingt, `execute()` schlägt fehl):
+    - Im klassischen Report-Modus (`mysqli_report(MYSQLI_REPORT_OFF)`, simuliert den
+      PHP-8.0-Default): `RuntimeException` wird korrekt geworfen
+      (`Duplicate entry '999' for key ...`), kein zusätzlicher/überschriebener Datensatz.
+    - Im Exception-Report-Modus (`MYSQLI_REPORT_ERROR|MYSQLI_REPORT_STRICT`,
+      PHP-8.1+-Default): ebenfalls korrekte `RuntimeException`.
+    - Positivfall (kein Konflikt): `INSERT` gelingt, genau ein Datensatz vorhanden.
+  - **Regressionsnachweis:** Der alte Code (unveränderte Kopie mit
+    `$stmt->execute(); $stmt->close();` ohne Rückgabewert-Prüfung, gegen dieselbe
+    Duplicate-Key-Situation im klassischen Report-Modus getestet) wirft **keine**
+    Exception — der Fehler wird tatsächlich verschluckt, wie im Review beschrieben.
+    Damit ist bestätigt, dass der Fix den beschriebenen Bug real behebt und nicht nur
+    kosmetisch ist.
+
 ## Nicht Teil dieser Task (bewusst ausgelassen)
 
 - `scripts/migrate.php` (T2.1), `scripts/migrate-selftest.php` (T3.1), `build.sh` (T4.1).

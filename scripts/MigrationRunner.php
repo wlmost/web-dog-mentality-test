@@ -96,8 +96,8 @@ class MigrationRunner
             . "  PRIMARY KEY (version)\n"
             . ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
-        [$success, $error] = self::runQuery($conn, $sql);
-        if (!$success) {
+        [$result, $error] = self::runQuery($conn, $sql);
+        if (!$result) {
             throw new RuntimeException(
                 "Tracking-Tabelle `$table` konnte nicht angelegt werden: " . $error
             );
@@ -202,18 +202,20 @@ class MigrationRunner
 
         try {
             $stmt = $conn->prepare("INSERT INTO `$table` (version, description) VALUES (?, ?)");
-            if (!$stmt) {
+            if ($stmt === false) {
                 throw new RuntimeException('Prepare fehlgeschlagen: ' . $conn->error);
             }
 
             $stmt->bind_param('ss', $version, $description);
-            $stmt->execute();
+            $error = self::runStatement($stmt);
             $stmt->close();
         } catch (mysqli_sql_exception $exception) {
+            $error = $exception->getMessage();
+        }
+
+        if ($error !== null) {
             throw new RuntimeException(
-                "Migration $version konnte nicht in `$table` eingetragen werden: " . $exception->getMessage(),
-                0,
-                $exception
+                "Migration $version konnte nicht in `$table` eingetragen werden: " . $error
             );
         }
     }
@@ -235,6 +237,25 @@ class MigrationRunner
             return [$result, $result === false ? $conn->error : null];
         } catch (mysqli_sql_exception $exception) {
             return [false, $exception->getMessage()];
+        }
+    }
+
+    /**
+     * Führt mysqli_stmt::execute() aus und liefert im Fehlerfall die
+     * Fehlermeldung zurück (sonst null) – unabhängig vom konfigurierten
+     * mysqli_report()-Level (Exception- oder klassischer Modus). Pendant
+     * zu runQuery() für Prepared Statements: mysqli_stmt::execute() gibt
+     * im Erfolgsfall/Fehlerfall nur bool zurück (statt mysqli_result|bool
+     * wie mysqli::query()) und kann daher nicht direkt über runQuery()
+     * abgebildet werden.
+     */
+    private static function runStatement(mysqli_stmt $stmt): ?string
+    {
+        try {
+            $success = $stmt->execute();
+            return $success === false ? $stmt->error : null;
+        } catch (mysqli_sql_exception $exception) {
+            return $exception->getMessage();
         }
     }
 
