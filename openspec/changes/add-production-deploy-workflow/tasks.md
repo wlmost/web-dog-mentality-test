@@ -78,7 +78,7 @@
 
 ## 3. deploy.yml
 
-- [ ] 3.1 Grundgerüst: Trigger, Concurrency, Environment, Checkout
+- [x] 3.1 Grundgerüst: Trigger, Concurrency, Environment, Checkout
   - Agent: Developer
   - Dateien: `.github/workflows/deploy.yml` (neu)
   - Abhängigkeiten: keine (setzt `add-ci-workflow` gemergt voraus)
@@ -92,12 +92,12 @@
     Checkout-Step mit
     `ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || (github.event.inputs.ref || github.ref) }}`.
   - Akzeptanz:
-    - [ ] `workflow_run` referenziert exakt `"CI"`
-    - [ ] `concurrency` mit `cancel-in-progress: false` gesetzt
-    - [ ] Job nutzt `environment: production`
-    - [ ] Checkout-`ref`-Ausdruck wie spezifiziert
+    - [x] `workflow_run` referenziert exakt `"CI"`
+    - [x] `concurrency` mit `cancel-in-progress: false` gesetzt
+    - [x] Job nutzt `environment: production`
+    - [x] Checkout-`ref`-Ausdruck wie spezifiziert
 
-- [ ] 3.2 Build-Steps im Workflow
+- [x] 3.2 Build-Steps im Workflow
   - Agent: Developer
   - Dateien: `.github/workflows/deploy.yml`
   - Abhängigkeiten: 3.1
@@ -113,11 +113,11 @@
     `wizard/index.php` validiert nur die `build.sh`-Integrität; `wizard/`
     wird später vom rsync ausgeschlossen (Task 3.4).
   - Akzeptanz:
-    - [ ] Fehlt eine Kern-Datei, bricht der Job vor SSH ab
-    - [ ] `scripts/migrate.php` ist Teil der Verifikation
-    - [ ] `extensions:` enthält `gd` und `zip`; kein `pdo_mysql`
+    - [x] Fehlt eine Kern-Datei, bricht der Job vor SSH ab
+    - [x] `scripts/migrate.php` ist Teil der Verifikation
+    - [x] `extensions:` enthält `gd` und `zip`; kein `pdo_mysql`
 
-- [ ] 3.3 SSH einrichten + Wartungsmodus an
+- [x] 3.3 SSH einrichten + Wartungsmodus an
   - Agent: Developer
   - Dateien: `.github/workflows/deploy.yml`
   - Abhängigkeiten: 3.2
@@ -127,8 +127,8 @@
     Danach Step „Maintenance an":
     `ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" -o StrictHostKeyChecking=yes "$USER@$HOST" "touch '$DEPLOY_PATH/.maintenance'" || echo "::warning::Wartungsmodus konnte nicht aktiviert werden (evtl. Erst-Deploy)"`.
   - Akzeptanz:
-    - [ ] Kein `StrictHostKeyChecking=no` / `-o StrictHostKeyChecking=accept-new`
-    - [ ] „Maintenance an" ist best-effort (Fehlschlag → nur Warnung)
+    - [x] Kein `StrictHostKeyChecking=no` / `-o StrictHostKeyChecking=accept-new`
+    - [x] „Maintenance an" ist best-effort (Fehlschlag → nur Warnung)
 
 - [ ] 3.4 rsync mit Schutz-Excludes
   - Agent: Developer

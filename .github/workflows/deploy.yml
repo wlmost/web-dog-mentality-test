@@ -1,0 +1,74 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit/Branch/Tag, der deployt werden soll"
+        required: false
+        default: main
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    environment: production
+    env:
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || 22 }}
+      DEPLOY_PHP_BIN: ${{ vars.DEPLOY_PHP_BIN || 'php' }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: >-
+            ${{ github.event_name == 'workflow_run'
+                && github.event.workflow_run.head_sha
+                || (github.event.inputs.ref || github.ref) }}
+
+      - name: PHP einrichten
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.0"
+          extensions: mbstring, ctype, gd, zip, mysqli, curl, json
+
+      - name: rsync sicherstellen
+        run: command -v rsync || (sudo apt-get update && sudo apt-get install -y rsync)
+
+      - name: Build ausführen
+        run: bash build.sh
+
+      - name: Kern-Dateien verifizieren
+        run: |
+          for f in api/auth.php frontend/index.html wizard/index.php vendor/autoload.php scripts/migrate.php; do
+            [[ -f "dist/dog-mentality-test/$f" ]] || { echo "::error::Kern-Datei fehlt: $f"; exit 1; }
+          done
+
+      - name: SSH einrichten
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$DEPLOY_PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Wartungsmodus an
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "touch '$DEPLOY_PATH/.maintenance'" \
+            || echo "::warning::Wartungsmodus konnte nicht aktiviert werden (evtl. Erst-Deploy)"
