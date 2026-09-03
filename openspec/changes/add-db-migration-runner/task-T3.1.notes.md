@@ -171,6 +171,81 @@ Pfad-Override unverhältnismäßiger Mehraufwand (Over-Engineering) gewesen.
   mit ANSI-Farbcodes, analog `tests/migration-runner-test.php` (konsistenter
   Stil im Projekt für Nicht-PHPUnit-Testskripte).
 
+## Review-Korrekturen (task-T3.1.review.md, Sollte-/Könnte-Befunde)
+
+Nach dem Review (`task-T3.1.review.md`) wurden folgende Punkte korrigiert:
+
+1. **[Sollte, Robustheit] `scripts/migrate.php`: Sichtbarer Hinweis bei
+   `MIGRATE_MIGRATIONS_DIR`-Override.** Direkt nach dem Einlesen der
+   testinternen Umgebungsvariable wird jetzt, falls sie gesetzt ist, eine
+   Zeile auf STDERR ausgegeben:
+   `HINWEIS: MIGRATE_MIGRATIONS_DIR aktiv -- Migrationsverzeichnis überschrieben: <pfad>`.
+   Damit ist ein versehentlich auf dem Deploy-Host aktiver Override in
+   jedem Deploy-Log sichtbar, bevor `MigrationRunner::runPending()`/
+   `getAvailableMigrations()` überhaupt aufgerufen werden. Ohne gesetzte
+   Variable erscheint keine zusätzliche Ausgabe (verifiziert: Lauf ohne und
+   mit `MIGRATE_MIGRATIONS_DIR` gegenübergestellt, Hinweiszeile erscheint
+   ausschließlich im zweiten Fall). Kein CLI-Flag eingeführt (bewusst kein
+   Scope-Ausbau der dokumentierten CLI-Schnittstelle, wie im Review als
+   Alternative vorgeschlagen).
+2. **[Sollte, Sicherheit] `scripts/migrate-selftest.php`: `0700` statt
+   `0777` für das Temp-Config-Verzeichnis.** `mkdir($tmpConfigDir, ...)`
+   (enthält `config.local.php` mit `DB_PASS` im Klartext) verwendet jetzt
+   `0700` statt `0777` — die Berechtigung hängt damit nicht mehr von der
+   lokalen `umask`-Konfiguration ab. Verifiziert per Docker-Lauf mit
+   `TMPDIR`-Override: `ls -ld` zeigt `drwx------` für das erzeugte
+   Verzeichnis. Das zweite, im Review als "optional/unkritisch" markierte
+   Verzeichnis (`$isolatedMigrationsDir`, Szenario 4, enthält nur
+   SQL-Dateiinhalte ohne Zugangsdaten) bewusst unverändert bei `0777`
+   belassen.
+3. **[Könnte, Korrektheit] `scripts/migrate-selftest.php`: `real_escape_string()`
+   auf einem Backtick-Identifier ersetzt.** Neue Hilfsfunktion
+   `quoteIdentifier(string $identifier): string`, die den Bezeichner gegen
+   das Whitelist-Pattern `^[A-Za-z0-9_]+$` validiert (bei Verstoß
+   `InvalidArgumentException`) und Backtick-quotiert zurückgibt. Ersetzt
+   alle drei Stellen, an denen zuvor `$admin->real_escape_string($dbName)`
+   innerhalb von Backticks für `DROP DATABASE`/`CREATE DATABASE` verwendet
+   wurde (Haupt-Ablauf sowie die identische Stelle in der
+   `register_shutdown_function()`-Aufräumroutine) — `real_escape_string()`
+   ist für String-Literal-Kontexte gedacht, nicht für Bezeichner-Kontexte.
+   `$dbName` bleibt weiterhin ausschließlich entwicklerkontrolliert
+   (`MIGRATE_TEST_NAME`), kein externer Eingabekanal.
+
+**Verifikation der Korrekturen:**
+- `php -l scripts/migrate.php`, `php -l scripts/migrate-selftest.php`,
+  `php -l scripts/MigrationRunner.php` (unverändert, nur als Regressionscheck
+  mitgeprüft) → alle drei fehlerfrei.
+- Docker-Setup (`mysql:8.0`, Port 33063, danach entfernt):
+  `scripts/migrate-selftest.php` läuft weiterhin vollständig grün
+  (**18/18 bestanden**, `EXIT: 0`), inklusive der jetzt Backtick-sicher
+  quotierten `DROP DATABASE`/`CREATE DATABASE`-Aufrufe.
+- `tests/migration-runner-test.php` läuft gegen denselben Container
+  weiterhin vollständig grün (**50/50 bestanden**, `EXIT: 0`) — keine
+  Regression durch die Korrekturen.
+- Aufräumen nach dem Selbsttest-Lauf erneut verifiziert: keine
+  liegen gebliebene `migrate_selftest`-Datenbank, keine
+  `migrate-selftest-*`-Temp-Verzeichnisse.
+- Docker-Container danach entfernt (`docker rm -f`).
+
+**Bewusst zurückgestellt (Könnte/Sollte-Punkt, nicht behoben):**
+Der Sollte-Punkt zu fehlendem `SIGINT`/`SIGTERM`-Cleanup
+(`scripts/migrate-selftest.php:145-159`, nur `register_shutdown_function`,
+kein `pcntl_signal()`-Handler) wird **nicht** umgesetzt. Begründung:
+`scripts/migrate-selftest.php` ist ein manuell/lokal ausgeführtes
+Entwickler-Tool (siehe Kopfkommentar: "reines Entwickler-/CI-Werkzeug",
+bewusst nicht Teil von `build.sh`/Deploy-Paket), kein Bestandteil der
+automatisierten Deploy-Pipeline. Ein `pcntl`-Signal-Handler würde eine
+zusätzliche, optionale PHP-Extension voraussetzen und zusätzliche
+Komplexität (Signal-Handler-Registrierung, Race-Bedingungen zwischen
+Handler und Shutdown-Function) für einen Fall einführen, der ausschließlich
+bei manuellem Ctrl-C während eines lokalen/CI-Testlaufs auftritt — das wäre
+Overengineering für diesen Scope (YAGNI). Ein harter Abbruch per Ctrl-C
+während eines Selbsttest-Laufs bleibt ein bekannter, akzeptierter
+Sonderfall: die Testdatenbank (`MIGRATE_TEST_NAME`, Default
+`migrate_selftest`) und ggf. `migrate-selftest-*`-Temp-Verzeichnisse unter
+`sys_get_temp_dir()` müssten dann manuell entfernt werden
+(`DROP DATABASE IF EXISTS <name>;` bzw. `rm -rf`).
+
 ## Nicht angefasst
 
 - `database/migrations/*.sql` — unverändert, wie gefordert.

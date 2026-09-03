@@ -117,6 +117,26 @@ function assertContains(string $needle, string $haystack, string $name): void
     }
 }
 
+/**
+ * Validiert einen SQL-Bezeichner (hier: Datenbankname) gegen ein
+ * restriktives Zeichen-Whitelist-Pattern und liefert ihn Backtick-quotiert
+ * zurueck. real_escape_string() ist fuer String-Literal-Kontexte gedacht,
+ * nicht fuer Bezeichner-Kontexte (Backticks) und daher hier bewusst nicht
+ * verwendet. $identifier stammt ausschliesslich aus MIGRATE_TEST_NAME
+ * (entwicklerkontrolliert, kein externer Eingabekanal).
+ */
+function quoteIdentifier(string $identifier): string
+{
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $identifier)) {
+        throw new InvalidArgumentException(
+            "Ungueltiger Bezeichner \"$identifier\" -- MIGRATE_TEST_NAME darf nur "
+            . 'Buchstaben, Ziffern und Unterstrich enthalten.'
+        );
+    }
+
+    return '`' . $identifier . '`';
+}
+
 // -----------------------------------------------------------------------
 // Aufraeumen (Testdatenbank + Temp-Dateien), auch bei Fehlschlag/Fatal Error
 // -----------------------------------------------------------------------
@@ -152,7 +172,7 @@ register_shutdown_function(static function () {
         [$host, $port, $user, $pass, $dbName] = $cleanupDb;
         $admin = @new mysqli($host, $user, $pass, '', $port);
         if (!$admin->connect_errno) {
-            $admin->query('DROP DATABASE IF EXISTS `' . $admin->real_escape_string($dbName) . '`');
+            $admin->query('DROP DATABASE IF EXISTS ' . quoteIdentifier($dbName));
             $admin->close();
         }
     }
@@ -214,8 +234,8 @@ pass("Verbindung zu Test-MySQL ($host:$port) hergestellt");
 
 $GLOBALS['__CLEANUP_DB'] = [$host, $port, $user, $pass, $dbName];
 
-$admin->query('DROP DATABASE IF EXISTS `' . $admin->real_escape_string($dbName) . '`');
-if (!$admin->query('CREATE DATABASE `' . $admin->real_escape_string($dbName) . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci')) {
+$admin->query('DROP DATABASE IF EXISTS ' . quoteIdentifier($dbName));
+if (!$admin->query('CREATE DATABASE ' . quoteIdentifier($dbName) . ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci')) {
     fwrite(STDERR, "Testdatenbank \"$dbName\" konnte nicht angelegt werden: {$admin->error}\n");
     exit(2);
 }
@@ -247,7 +267,10 @@ foreach (['schema.sql', 'schema-auth.sql'] as $schemaFile) {
 // -----------------------------------------------------------------------
 
 $tmpConfigDir = sys_get_temp_dir() . '/migrate-selftest-' . bin2hex(random_bytes(6));
-mkdir($tmpConfigDir, 0777, true);
+// 0700 statt 0777: das Verzeichnis enthaelt eine config.local.php mit
+// DB_PASS im Klartext -- die Berechtigung darf nicht von der lokalen
+// umask-Konfiguration abhaengen (siehe task-T3.1.review.md).
+mkdir($tmpConfigDir, 0700, true);
 $GLOBALS['__TMP_PATHS'][] = $tmpConfigDir;
 
 $configPath = $tmpConfigDir . '/config.local.php';

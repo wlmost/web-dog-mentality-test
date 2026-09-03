@@ -82,6 +82,14 @@ if ($configPath === null) {
 $migrationsDirOverride = getenv('MIGRATE_MIGRATIONS_DIR');
 $migrationsDirOverride = $migrationsDirOverride !== false ? $migrationsDirOverride : null;
 
+if ($migrationsDirOverride !== null) {
+    // Sichtbarer Hinweis in jedem Deploy-Log, falls die Umgebungsvariable
+    // versehentlich auf dem Deploy-Host aktiv ist (siehe Kopfkommentar oben):
+    // ein Produktionslauf ohne diese Meldung verwendet garantiert
+    // database/migrations/.
+    fwrite(STDERR, "HINWEIS: MIGRATE_MIGRATIONS_DIR aktiv -- Migrationsverzeichnis überschrieben: $migrationsDirOverride" . PHP_EOL);
+}
+
 if (!is_file($configPath)) {
     migrateFail("MIGRATE FAIL: Konfigurationsdatei nicht gefunden: $configPath");
 }
