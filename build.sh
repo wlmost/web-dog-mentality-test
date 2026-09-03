@@ -160,8 +160,9 @@ ok "logs/ angelegt"
 [[ -f ".htaccess"    ]] && cp ".htaccess"    "$DIST/.htaccess"
 [[ -f "index.php"   ]] && cp "index.php"    "$DIST/index.php"
 [[ -f "php.ini.example" ]] && cp "php.ini.example" "$DIST/php.ini.example"
+[[ -f "maintenance.html" ]] && cp "maintenance.html" "$DIST/maintenance.html"
 cp "composer.json" "$DIST/composer.json"
-ok ".htaccess, index.php, php.ini.example, composer.json"
+ok ".htaccess, index.php, php.ini.example, maintenance.html, composer.json"
 
 # ---------------------------------------------------------------------------
 # vendor/ kopieren (nach composer install)
@@ -181,7 +182,8 @@ cat > "$DIST/DEPLOY_CHECKLIST.txt" << 'EOF'
 Dog Mentality Test – Deployment-Checkliste
 ==========================================
 
-1. Dieses Verzeichnis per FTP vollständig auf den Server übertragen.
+1. Dieses Verzeichnis vollständig auf den Server übertragen
+   (SSH/rsync empfohlen, FTP als Fallback).
 
 2. WICHTIG – Wizard ausführen:
    https://deine-domain.de/wizard/
@@ -197,8 +199,8 @@ Dog Mentality Test – Deployment-Checkliste
    Key erstellen: https://platform.openai.com/api-keys
 
 4. Nach der Installation:
-   - /wizard/-Verzeichnis per FTP SOFORT löschen!
-   - /database/-Verzeichnis per FTP löschen (nicht öffentlich zugänglich lassen)
+   - /wizard/-Verzeichnis SOFORT löschen (SSH oder FTP)!
+   - /database/-Verzeichnis löschen (nicht öffentlich zugänglich lassen)
 
 5. php.ini.example → php.ini umbenennen falls nötig.
 

@@ -53,7 +53,7 @@
 
 ## 2. build.sh
 
-- [ ] 2.1 `maintenance.html` ins Deploy-Paket aufnehmen
+- [x] 2.1 `maintenance.html` ins Deploy-Paket aufnehmen
   - Agent: Developer
   - Dateien: `build.sh`
   - Abhängigkeiten: 1.3
@@ -62,11 +62,11 @@
     werden) `maintenance.html` mit aufnehmen:
     `[[ -f "maintenance.html" ]] && cp "maintenance.html" "$DIST/maintenance.html"`.
   - Akzeptanz:
-    - [ ] Nach `bash build.sh` existiert
+    - [x] Nach `bash build.sh` existiert
       `dist/dog-mentality-test/maintenance.html`
-    - [ ] `bash build.sh` endet mit Exit-Code 0
+    - [x] `bash build.sh` endet mit Exit-Code 0
 
-- [ ] 2.2 (optional) `DEPLOY_CHECKLIST.txt` transport-neutral formulieren
+- [x] 2.2 (optional) `DEPLOY_CHECKLIST.txt` transport-neutral formulieren
   - Agent: Developer
   - Dateien: `build.sh`
   - Abhängigkeiten: keine
@@ -74,7 +74,7 @@
     Here-Doc `DEPLOY_CHECKLIST.txt` neutral halten (SSH/rsync-Deploy statt
     „per FTP übertragen"). Kein funktionaler Umbau.
   - Akzeptanz:
-    - [ ] `DEPLOY_CHECKLIST.txt` im Build nennt kein FTP als einzigen Weg
+    - [x] `DEPLOY_CHECKLIST.txt` im Build nennt kein FTP als einzigen Weg
 
 ## 3. deploy.yml
 
