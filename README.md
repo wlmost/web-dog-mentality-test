@@ -430,6 +430,10 @@ tail /var/log/php_errors.log
 
 ## 📦 Deployment auf Webhosting
 
+Der bevorzugte Weg für die Produktion (alfahosting, SSH) ist der
+automatisierte CI/CD-Deploy — siehe [`CI_CD.md`](CI_CD.md). FTP bleibt als
+manueller Fallback dokumentiert in [`FTP_DEPLOYMENT.md`](FTP_DEPLOYMENT.md).
+
 1. **Dateien hochladen** (via FTP/SFTP)
 2. **Datenbank erstellen** (phpMyAdmin)
 3. **Schema importieren** (`database/schema.sql`)

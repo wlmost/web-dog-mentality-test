@@ -195,7 +195,7 @@
 
 ## 4. Dokumentation
 
-- [ ] 4.1 `CI_CD.md` schreiben
+- [x] 4.1 `CI_CD.md` schreiben
   - Agent: Developer
   - Dateien: `CI_CD.md` (neu), ggf. Verweis aus `README.md`
   - Abhängigkeiten: 3.1–3.7
@@ -218,11 +218,11 @@
     `rm -f $DEPLOY_PATH/.maintenance`; (j) Hinweis, dass `wizard/` per Deploy
     nie übertragen wird (D2b).
   - Akzeptanz:
-    - [ ] Alle Abschnitte (a)–(j) vorhanden
-    - [ ] Erstinbetriebnahme nennt explizit „1. Deploy rot ist erwartet"
-    - [ ] Secret-/Variablennamen stimmen mit `deploy.yml` überein
+    - [x] Alle Abschnitte (a)–(j) vorhanden
+    - [x] Erstinbetriebnahme nennt explizit „1. Deploy rot ist erwartet"
+    - [x] Secret-/Variablennamen stimmen mit `deploy.yml` überein
 
-- [ ] 4.2 `FTP_DEPLOYMENT.md` um SSH-/CI-CD-Hinweis ergänzen
+- [x] 4.2 `FTP_DEPLOYMENT.md` um SSH-/CI-CD-Hinweis ergänzen
   - Agent: Developer
   - Dateien: `FTP_DEPLOYMENT.md`
   - Abhängigkeiten: keine
@@ -232,8 +232,8 @@
     `CI_CD.md`) ist der bevorzugte Weg. Die folgende FTP-Anleitung bleibt als
     **Fallback** erhalten (z. B. für Notfälle ohne CI).
   - Akzeptanz:
-    - [ ] `FTP_DEPLOYMENT.md` nennt alfahosting + SSH + CI/CD als bevorzugt
-    - [ ] Die bestehende FTP-Anleitung bleibt vollständig erhalten
+    - [x] `FTP_DEPLOYMENT.md` nennt alfahosting + SSH + CI/CD als bevorzugt
+    - [x] Die bestehende FTP-Anleitung bleibt vollständig erhalten
 
 ## 5. Verifikation
 
