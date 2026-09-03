@@ -108,7 +108,7 @@
     - [ ] Artefakt `dist/dog-mentality-test` ist nach erfolgreichem Lauf
       herunterladbar
 
-- [ ] 3.4 CI end-to-end grün
+- [x] 3.4 CI end-to-end grün
   - Agent: Developer
   - Dateien: — (Verifikation)
   - Abhängigkeiten: 3.1, 3.2, 3.3
