@@ -181,7 +181,9 @@
   - Agent: Developer
   - Dateien: `.github/workflows/deploy.yml`
   - Abhängigkeiten: 3.4
-  - Beschreibung: Früher Step (nach Checkout, vor Build): `set -e`;
+  - Beschreibung: Step gemäß design.md D8 Schritt 6 (nach der
+    Build-Verifikation, vor SSH-Setup — nicht "vor Build", wie eine frühere
+    Version dieses Textes fälschlich nahelegte): `set -e`;
     `grep -q '^name: CI$' .github/workflows/ci.yml || { echo "::error::ci.yml heißt nicht mehr 'CI'"; exit 1; }`;
     für **jedes** der zwölf Schutz-Excludes aus Task 3.4
     `grep -q "exclude='<muster>'" .github/workflows/deploy.yml` (an das
