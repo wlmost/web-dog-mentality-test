@@ -57,6 +57,33 @@ jobs:
             [[ -f "dist/dog-mentality-test/$f" ]] || { echo "::error::Kern-Datei fehlt: $f"; exit 1; }
           done
 
+      - name: Kopplungs-Guard (CI-Name + rsync-Excludes)
+        run: |
+          set -e
+
+          grep -q '^name: CI$' .github/workflows/ci.yml \
+            || { echo "::error::ci.yml heißt nicht mehr 'CI'"; exit 1; }
+
+          excludes=(
+            ".maintenance"
+            "api/config.local.php"
+            "uploads/"
+            "logs/"
+            ".git"
+            "wizard/"
+            "*.zip"
+            "dist/"
+            "php.ini"
+            ".user.ini"
+            ".htpasswd"
+            ".well-known/"
+          )
+
+          for pattern in "${excludes[@]}"; do
+            grep -qF -- "exclude='$pattern'" .github/workflows/deploy.yml \
+              || { echo "::error::Schutz-Exclude fehlt in deploy.yml: $pattern"; exit 1; }
+          done
+
       - name: SSH einrichten
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -72,3 +99,62 @@ jobs:
           ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" \
             "touch '$DEPLOY_PATH/.maintenance'" \
             || echo "::warning::Wartungsmodus konnte nicht aktiviert werden (evtl. Erst-Deploy)"
+
+      - name: Dateien übertragen (rsync)
+        run: |
+          rsync -az --delete \
+            --exclude='.maintenance' \
+            --exclude='api/config.local.php' \
+            --exclude='uploads/' \
+            --exclude='logs/' \
+            --exclude='.git' \
+            --exclude='wizard/' \
+            --exclude='*.zip' \
+            --exclude='dist/' \
+            --exclude='php.ini' \
+            --exclude='.user.ini' \
+            --exclude='.htpasswd' \
+            --exclude='.well-known/' \
+            -e "ssh -i ~/.ssh/deploy_key -p $DEPLOY_PORT -o StrictHostKeyChecking=yes" \
+            dist/dog-mentality-test/ \
+            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+
+      - name: Migrationen ausführen
+        id: migrate
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "cd '$DEPLOY_PATH' && $DEPLOY_PHP_BIN scripts/migrate.php"
+
+      - name: Wartungsmodus aus
+        if: always()
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "rm -f '$DEPLOY_PATH/.maintenance'" \
+            || echo "::warning::Wartungsmodus konnte nicht deaktiviert werden"
+
+      - name: SSH-Key entfernen
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
+
+      - name: Deployment summary
+        if: always()
+        env:
+          DEPLOY_REF: >-
+            ${{ github.event_name == 'workflow_run'
+                && github.event.workflow_run.head_sha
+                || (github.event.inputs.ref || github.ref) }}
+          DEPLOY_ACTOR: ${{ github.actor }}
+          DEPLOY_TRIGGER: ${{ github.event_name }}
+          MIGRATION_OUTCOME: ${{ steps.migrate.outcome || 'übersprungen' }}
+        run: |
+          {
+            echo "### Deployment-Zusammenfassung"
+            echo
+            echo "| Feld | Wert |"
+            echo "| --- | --- |"
+            echo "| Auslöser | \`$DEPLOY_TRIGGER\` |"
+            echo "| Deployter Commit | \`$DEPLOY_REF\` |"
+            echo "| Actor | \`$DEPLOY_ACTOR\` |"
+            echo "| Zeitpunkt (UTC) | \`$(date -u '+%Y-%m-%d %H:%M:%S UTC')\` |"
+            echo "| Migrations-Ergebnis | \`$MIGRATION_OUTCOME\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

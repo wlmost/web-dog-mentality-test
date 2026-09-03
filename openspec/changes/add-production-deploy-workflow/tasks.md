@@ -130,7 +130,7 @@
     - [x] Kein `StrictHostKeyChecking=no` / `-o StrictHostKeyChecking=accept-new`
     - [x] „Maintenance an" ist best-effort (Fehlschlag → nur Warnung)
 
-- [ ] 3.4 rsync mit Schutz-Excludes
+- [x] 3.4 rsync mit Schutz-Excludes
   - Agent: Developer
   - Dateien: `.github/workflows/deploy.yml`
   - Abhängigkeiten: 3.3
@@ -146,13 +146,13 @@
     `php.ini`/`.user.ini`/`.htpasswd`/`.well-known/` schützen serverseitig
     angelegte Hoster-/ACME-Dateien vor `--delete`.
   - Akzeptanz:
-    - [ ] Alle zwölf Schutz-Excludes im Aufruf vorhanden (inkl. `wizard/`,
+    - [x] Alle zwölf Schutz-Excludes im Aufruf vorhanden (inkl. `wizard/`,
       `php.ini`, `.user.ini`, `.htpasswd`, `.well-known/`)
-    - [ ] Kein `wizard/.lock`-Einzelexclude mehr (durch `wizard/` abgedeckt)
-    - [ ] Quelle ist `dist/dog-mentality-test/` (mit Trailing Slash)
-    - [ ] `--delete` aktiv
+    - [x] Kein `wizard/.lock`-Einzelexclude mehr (durch `wizard/` abgedeckt)
+    - [x] Quelle ist `dist/dog-mentality-test/` (mit Trailing Slash)
+    - [x] `--delete` aktiv
 
-- [ ] 3.5 Migrationen per SSH
+- [x] 3.5 Migrationen per SSH
   - Agent: Developer
   - Dateien: `.github/workflows/deploy.yml`
   - Abhängigkeiten: 3.4
@@ -160,10 +160,10 @@
     `ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" -o StrictHostKeyChecking=yes "$USER@$HOST" "cd '$DEPLOY_PATH' && $DEPLOY_PHP_BIN scripts/migrate.php"`.
     Kein `|| true` — Exit ≠ 0 lässt den Job fehlschlagen.
   - Akzeptanz:
-    - [ ] Migrations-Fehler macht den Job rot
-    - [ ] Nutzt `$DEPLOY_PHP_BIN`
+    - [x] Migrations-Fehler macht den Job rot
+    - [x] Nutzt `$DEPLOY_PHP_BIN`
 
-- [ ] 3.6 Wartungsmodus aus, Key-Cleanup, Summary (alle `if: always()`)
+- [x] 3.6 Wartungsmodus aus, Key-Cleanup, Summary (alle `if: always()`)
   - Agent: Developer
   - Dateien: `.github/workflows/deploy.yml`
   - Abhängigkeiten: 3.5
@@ -174,10 +174,10 @@
     `$GITHUB_STEP_SUMMARY` mit Auslöser, deployten Commit (head_sha bzw.
     ref), Actor, UTC-Zeit, Migrations-Ergebnis.
   - Akzeptanz:
-    - [ ] Alle drei Steps haben `if: always()`
-    - [ ] Summary enthält die fünf geforderten Felder
+    - [x] Alle drei Steps haben `if: always()`
+    - [x] Summary enthält die fünf geforderten Felder
 
-- [ ] 3.7 Kopplungs-Guard-Step
+- [x] 3.7 Kopplungs-Guard-Step
   - Agent: Developer
   - Dateien: `.github/workflows/deploy.yml`
   - Abhängigkeiten: 3.4
@@ -187,8 +187,8 @@
     `grep -q "exclude='<muster>'" .github/workflows/deploy.yml` (an das
     tatsächliche Quoting angepasst) — fehlt eines, `echo "::error::…"; exit 1`.
   - Akzeptanz:
-    - [ ] Umbenennen von `ci.yml` `name:` lässt den Guard fehlschlagen
-    - [ ] Entfernen eines beliebigen der zwölf Excludes (insb. `wizard/`)
+    - [x] Umbenennen von `ci.yml` `name:` lässt den Guard fehlschlagen
+    - [x] Entfernen eines beliebigen der zwölf Excludes (insb. `wizard/`)
       lässt den Guard fehlschlagen
 
 ## 4. Dokumentation
